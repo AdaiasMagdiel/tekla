@@ -1,6 +1,6 @@
 const params = new URLSearchParams(window.location.search);
 const roomCode = (params.get("code") || "").toUpperCase();
-const user = JSON.parse(localStorage.getItem("typegp_user") || "null");
+const user = JSON.parse(localStorage.getItem("tekla_user") || "null");
 
 if (!roomCode || !user) {
   window.location.href = "/";

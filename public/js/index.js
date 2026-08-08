@@ -5,7 +5,7 @@ const createBtn = document.getElementById("createBtn");
 const joinBtn = document.getElementById("joinBtn");
 const errorBox = document.getElementById("errorBox");
 
-const stored = JSON.parse(localStorage.getItem("typegp_user") || "null");
+const stored = JSON.parse(localStorage.getItem("tekla_user") || "null");
 if (stored) {
   usernameEl.value = stored.username;
   displayNameEl.value = stored.displayName;
@@ -45,7 +45,7 @@ async function ensureUser() {
     showError(data.error || "Erro ao criar usuário.");
     return null;
   }
-  localStorage.setItem("typegp_user", JSON.stringify(data));
+  localStorage.setItem("tekla_user", JSON.stringify(data));
   return data;
 }
 

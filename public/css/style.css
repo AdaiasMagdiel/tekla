@@ -104,7 +104,7 @@ header.top {
   color: var(--text);
 }
 .brand .flag { color: var(--brand); }
-.brand .gp { color: var(--brand); }
+.brand .brand-hi { color: var(--brand); }
 
 nav {
   display: flex;

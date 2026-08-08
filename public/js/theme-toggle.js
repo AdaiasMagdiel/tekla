@@ -17,7 +17,7 @@
   btn.addEventListener("click", () => {
     const next = currentTheme() === "light" ? "dark" : "light";
     document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("typegp_theme", next);
+    localStorage.setItem("tekla_theme", next);
     updateIcon();
   });
 

@@ -1,5 +1,5 @@
 {
-  "name": "typegp",
+  "name": "tekla",
   "version": "1.0.0",
   "description": "Real-time multiplayer typing race game with rooms, live WPM/accuracy tracking, a big-screen mirror view, and a global leaderboard.",
   "main": "src/server.js",

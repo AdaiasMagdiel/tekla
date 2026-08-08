@@ -284,5 +284,5 @@ wss.on("connection", (ws, req) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`TypeGP rodando em http://localhost:${PORT}`);
+  console.log(`Tekla rodando em http://localhost:${PORT}`);
 });

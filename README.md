@@ -1,4 +1,4 @@
-# TypeGP 🏁
+# Tekla 🏁
 
 A real-time multiplayer typing race game. Create a room, share a short join code, and race your friends by typing a shared paragraph as fast — and as accurately — as possible.
 
@@ -28,7 +28,7 @@ npm install
 npm start
 ```
 
-The app runs on `http://localhost:3000` by default (override with the `PORT` env var). A SQLite database is created automatically at `data/typegp.sqlite` on first run.
+The app runs on `http://localhost:3000` by default (override with the `PORT` env var). A SQLite database is created automatically at `data/tekla.sqlite` on first run.
 
 ## Project structure
 

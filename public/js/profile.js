@@ -1,5 +1,5 @@
 const params = new URLSearchParams(window.location.search);
-const stored = JSON.parse(localStorage.getItem("typegp_user") || "null");
+const stored = JSON.parse(localStorage.getItem("tekla_user") || "null");
 const username = params.get("u") || stored?.username;
 
 const profileTitle = document.getElementById("profileTitle");
