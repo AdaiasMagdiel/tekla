@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sala — TypeGP</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Type<span class="gp">GP</span></a>
+      <nav>
+        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
+        <a href="/profile.html"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+      </nav>
+    </header>
+
+    <div class="panel">
+      <div class="room-header">
+        <div>
+          <h1 style="margin-bottom:4px;">Sala <code class="room-code" id="roomCodeLabel">------</code></h1>
+          <div class="room-code-display copy-hint" id="copyHint"><i data-lucide="copy" class="icon"></i>clique para copiar o link do convite</div>
+          <div class="room-code-display"><a href="#" id="mirrorLink" target="_blank" style="color:inherit; display:inline-flex; align-items:center; gap:6px;"><i data-lucide="tv" class="icon"></i>abrir modo telão</a></div>
+        </div>
+        <button class="btn btn-primary" id="startBtn" style="display:none;">Começar corrida</button>
+        <div id="waitingHostMsg" class="room-code-display" style="display:none;">Aguardando o dono da sala começar…</div>
+      </div>
+
+      <div class="track" id="track"></div>
+
+      <div class="text-panel blurred" id="textPanel" style="display:none;"></div>
+
+      <div id="raceArea" style="display:none;">
+        <input type="text" class="typing-input" id="typingInput" placeholder="A corrida ainda não começou…" disabled autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+        <div class="stats-row">
+          <div class="stat"><div class="val" id="statWpm">0</div><div class="lbl">PPM</div></div>
+          <div class="stat"><div class="val" id="statAcc">100%</div><div class="lbl">Precisão</div></div>
+          <div class="stat"><div class="val" id="statProgress">0%</div><div class="lbl">Progresso</div></div>
+        </div>
+      </div>
+
+      <div id="resultsArea" style="display:none; margin-top: 20px;">
+        <h2><i data-lucide="flag" class="icon"></i>Resultado da corrida</h2>
+        <ul class="results-list" id="resultsList"></ul>
+        <button class="btn btn-secondary btn-block" onclick="window.location.reload()">Ver sala novamente</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="countdown-overlay" id="countdownOverlay">
+    <div class="countdown-num" id="countdownNum">5</div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/room.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Telão — TypeGP</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/mirror.css" />
+</head>
+<body class="mirror-body">
+  <div class="mirror-wrap">
+    <header class="mirror-header">
+      <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Type<span class="gp">GP</span></a>
+      <div class="mirror-room-info">
+        <span class="mirror-status" id="mirrorStatus">conectando…</span>
+        <code class="room-code" id="roomCodeLabel">------</code>
+      </div>
+    </header>
+
+    <div id="codeForm" class="panel mirror-code-form" style="display:none;">
+      <h1><i data-lucide="tv" class="icon"></i>Modo telão</h1>
+      <p class="sub">Informe o código da sala para exibir a corrida em tempo real.</p>
+      <input type="text" id="codeInput" placeholder="ex: AB3D9K" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
+      <button class="btn btn-primary btn-block" id="codeSubmit">Exibir corrida</button>
+      <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <div id="mirrorMain" style="display:none;">
+      <div class="mirror-track" id="mirrorTrack"></div>
+
+      <div class="mirror-text-panel blurred" id="mirrorTextPanel"></div>
+
+      <div id="mirrorResults" style="display:none;">
+        <h2><i data-lucide="flag" class="icon"></i>Resultado da corrida</h2>
+        <ul class="results-list mirror-results-list" id="mirrorResultsList"></ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="countdown-overlay" id="countdownOverlay">
+    <div class="countdown-num" id="countdownNum">5</div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/mirror.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

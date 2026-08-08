@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TypeGP — Corrida de digitação ao vivo</title>
+  <meta name="description" content="Entre em uma sala, digite mais rápido que seus amigos e vença a corrida. Ranking global, PPM e precisão em tempo real." />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="TypeGP" />
+  <meta property="og:title" content="TypeGP — Corrida de digitação ao vivo" />
+  <meta property="og:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real. Ranking, PPM e precisão." />
+  <meta property="og:image" content="/img/og-image.svg" />
+  <meta property="og:image:type" content="image/svg+xml" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="TypeGP — Corrida de digitação ao vivo" />
+  <meta name="twitter:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real." />
+  <meta name="twitter:image" content="/img/og-image.svg" />
+
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Type<span class="gp">GP</span></a>
+      <nav>
+        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
+        <a href="/profile.html" id="profileLink" style="display:none;"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+      </nav>
+    </header>
+
+    <div class="panel">
+      <h1>Corrida de digitação em tempo real</h1>
+      <p class="sub">Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.</p>
+
+      <label for="username">Nome de usuário</label>
+      <input type="text" id="username" placeholder="ex: adaias_m" maxlength="16" autocomplete="off" />
+
+      <label for="displayName">Seu nome</label>
+      <input type="text" id="displayName" placeholder="ex: Adaias" maxlength="40" autocomplete="off" />
+
+      <div class="grid-2" style="margin-top: 24px;">
+        <div>
+          <h2 style="font-size:1rem;">Criar sala</h2>
+          <button class="btn btn-primary btn-block" id="createBtn">Criar sala nova</button>
+        </div>
+        <div>
+          <h2 style="font-size:1rem;">Entrar com código</h2>
+          <input type="text" id="roomCode" placeholder="ex: AB3D9K" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
+          <button class="btn btn-secondary btn-block" id="joinBtn">Entrar na sala</button>
+        </div>
+      </div>
+
+      <div class="error-box" id="errorBox"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/index.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
