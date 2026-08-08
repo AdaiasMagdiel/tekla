@@ -14,6 +14,8 @@ const startBtn = document.getElementById("startBtn");
 const waitingHostMsg = document.getElementById("waitingHostMsg");
 const raceArea = document.getElementById("raceArea");
 const textPanel = document.getElementById("textPanel");
+const textChars = document.getElementById("textChars");
+const caret = document.getElementById("caret");
 const typingInput = document.getElementById("typingInput");
 const statWpm = document.getElementById("statWpm");
 const statAcc = document.getElementById("statAcc");
@@ -111,11 +113,14 @@ function renderTrack(room) {
     .sort((a, b) => (a.userId === user.id ? -1 : b.userId === user.id ? 1 : 0))
     .forEach((p) => {
       const lane = document.createElement("div");
-      lane.className = "lane";
+      lane.className = "lane" + (p.userId === user.id ? " me" : "");
 
+      const statusBadge = p.connected
+        ? ""
+        : '<span class="badge-pill waiting">offline</span>';
       const label = document.createElement("div");
       label.className = "label";
-      label.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${p.userId === user.id ? " (você)" : ""}${!p.connected ? '<span class="disconnected"> — offline</span>' : ""}`;
+      label.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${p.userId === user.id ? " (você)" : ""} ${statusBadge}`;
       lane.appendChild(label);
 
       const car = document.createElement("div");
@@ -176,12 +181,30 @@ function renderTextPanel(typed) {
     let cls = "ch";
     if (i < typed.length) {
       cls += typed[i] === ch ? " correct" : " wrong";
-    } else if (i === typed.length) {
-      cls += " cursor";
     }
     html += `<span class="${cls}">${escapeHtml(ch)}</span>`;
   }
-  textPanel.innerHTML = html;
+  textChars.innerHTML = html;
+  updateCaret(typed.length);
+}
+
+// Moves the caret to the next character's position instead of rebuilding it,
+// so it can glide there (transform transition) rather than jumping.
+function updateCaret(index) {
+  const target = targetText || "";
+  if (!target.length) return;
+  const span = textChars.children[Math.min(index, target.length - 1)];
+  if (!span) return;
+
+  const panelRect = textPanel.getBoundingClientRect();
+  const spanRect = span.getBoundingClientRect();
+  const atEnd = index >= target.length;
+  const x = spanRect.left - panelRect.left + (atEnd ? spanRect.width : 0);
+  const y = spanRect.top - panelRect.top;
+
+  caret.style.height = `${spanRect.height}px`;
+  caret.style.transform = `translate(${x}px, ${y}px)`;
+  caret.classList.add("show");
 }
 
 function correctPrefixLen(target, typed) {
@@ -322,4 +345,5 @@ function escapeHtml(str) {
 
 window.addEventListener("resize", () => {
   if (latestState) renderTrack(latestState);
+  if (targetText) updateCaret(Number(typingInput.dataset.prevLen || 0));
 });

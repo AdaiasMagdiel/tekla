@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ranking — TypeGP</title>
   <meta name="description" content="Ranking global dos melhores digitadores do TypeGP." />
+  <script src="/js/theme-init.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -14,6 +18,7 @@
       <nav>
         <a href="/"><i data-lucide="play" class="icon"></i>Jogar</a>
         <a href="/profile.html"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
@@ -25,6 +30,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/theme-toggle.js"></script>
   <script src="/js/ranking.js"></script>
   <script>lucide.createIcons();</script>
 </body>

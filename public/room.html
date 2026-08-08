@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Sala — TypeGP</title>
   <meta name="robots" content="noindex" />
+  <script src="/js/theme-init.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -14,6 +18,7 @@
       <nav>
         <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
         <a href="/profile.html"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
@@ -30,7 +35,10 @@
 
       <div class="track" id="track"></div>
 
-      <div class="text-panel blurred" id="textPanel" style="display:none;"></div>
+      <div class="text-panel blurred" id="textPanel" style="display:none;">
+        <div class="chars" id="textChars"></div>
+        <div class="caret" id="caret"></div>
+      </div>
 
       <div id="raceArea" style="display:none;">
         <input type="text" class="typing-input" id="typingInput" placeholder="A corrida ainda não começou…" disabled autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
@@ -54,6 +62,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/theme-toggle.js"></script>
   <script src="/js/room.js"></script>
   <script>lucide.createIcons();</script>
 </body>

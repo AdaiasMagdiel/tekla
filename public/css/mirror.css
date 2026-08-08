@@ -50,7 +50,7 @@
 
 .mirror-lane {
   position: relative;
-  background: linear-gradient(90deg, var(--bg-alt), #14172a);
+  background: linear-gradient(90deg, var(--bg-alt), var(--panel));
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 14px 18px;
@@ -99,10 +99,8 @@
 .mirror-lane .name-row .dot {
   width: 12px; height: 12px; border-radius: 50%;
 }
-.mirror-lane .name-row .disconnected {
-  color: var(--text-dim);
-  font-weight: 600;
-  font-size: 0.9rem;
+.mirror-lane .name-row .badge-pill {
+  font-size: 0.7rem;
 }
 
 .mirror-lane .metrics {
@@ -116,15 +114,20 @@
   min-width: 70px;
 }
 .mirror-lane .metric .val {
-  font-size: 1.5rem;
-  font-weight: 900;
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum";
+  font-size: 1.7rem;
+  font-weight: 700;
   line-height: 1;
+  letter-spacing: -0.02em;
 }
 .mirror-lane .metric .lbl {
+  font-family: var(--font-ui);
+  font-weight: 500;
   font-size: 0.68rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.02em;
 }
 .mirror-lane .metric.finish-badge .val { color: var(--good); }
 
@@ -135,8 +138,8 @@
   padding: 28px;
   font-size: 1.6rem;
   line-height: 1.9;
-  letter-spacing: 0.4px;
-  font-family: "Consolas", "Menlo", monospace;
+  letter-spacing: 0;
+  font-family: var(--font-mono);
   user-select: none;
   white-space: normal;
   overflow-wrap: break-word;

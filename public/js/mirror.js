@@ -26,6 +26,8 @@ function showError(msg) {
 function connect(code) {
   roomCode = code;
   roomCodeLabel.textContent = code;
+  roomCodeLabel.style.display = "inline";
+  mirrorStatus.style.display = "inline";
   codeForm.style.display = "none";
   mirrorMain.style.display = "block";
   mirrorStatus.textContent = "conectando…";
@@ -38,6 +40,8 @@ function connect(code) {
     if (msg.type === "error") {
       mirrorMain.style.display = "none";
       codeForm.style.display = "block";
+      roomCodeLabel.style.display = "none";
+      mirrorStatus.style.display = "none";
       showError(msg.message);
       history.replaceState(null, "", "/mirror.html");
     } else if (msg.type === "state") {
@@ -87,7 +91,7 @@ function render(room) {
 
       const nameRow = document.createElement("div");
       nameRow.className = "name-row";
-      nameRow.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${!p.connected ? '<span class="disconnected"> — offline</span>' : ""}`;
+      nameRow.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)} ${!p.connected ? '<span class="badge-pill waiting">offline</span>' : ""}`;
       lane.appendChild(nameRow);
 
       const metrics = document.createElement("div");

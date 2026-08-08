@@ -22,6 +22,10 @@
   <meta name="twitter:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real." />
   <meta name="twitter:image" content="/img/og-image.svg" />
 
+  <script src="/js/theme-init.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -31,11 +35,12 @@
       <nav>
         <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
         <a href="/profile.html" id="profileLink" style="display:none;"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
     <div class="panel">
-      <h1>Corrida de digitação em tempo real</h1>
+      <h1 class="hero-title">Corrida de digitação em tempo real</h1>
       <p class="sub">Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.</p>
 
       <label for="username">Nome de usuário</label>
@@ -61,6 +66,7 @@
   </div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/theme-toggle.js"></script>
   <script src="/js/index.js"></script>
   <script>lucide.createIcons();</script>
 </body>
