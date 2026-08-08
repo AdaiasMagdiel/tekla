@@ -49,4 +49,4 @@ public/
 
 ## License
 
-ISC
+[AGPL-3.0](LICENSE) — if you run a modified version of this project as a network service, you must make the source of your modified version available to its users.
