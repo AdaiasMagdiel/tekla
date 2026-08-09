@@ -3,9 +3,10 @@ import { createUser, getUserById, getUserByUsername, isValidUsername } from "../
 import { testDb } from "./helpers.js";
 
 describe("isValidUsername", () => {
-  it("accepts letters, numbers and underscore, 3-16 chars", () => {
+  it("accepts letters, numbers, underscore and dot, 3-16 chars", () => {
     expect(isValidUsername("abc")).toBe(true);
     expect(isValidUsername("adaias_m")).toBe(true);
+    expect(isValidUsername("beremiz.samir")).toBe(true);
     expect(isValidUsername("A1_2345678901234")).toBe(true); // 16 chars
   });
 
@@ -17,7 +18,6 @@ describe("isValidUsername", () => {
   it("rejects special characters and spaces", () => {
     expect(isValidUsername("bad name")).toBe(false);
     expect(isValidUsername("bad-name")).toBe(false);
-    expect(isValidUsername("bad.name")).toBe(false);
     expect(isValidUsername("café")).toBe(false);
   });
 

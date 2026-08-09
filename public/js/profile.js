@@ -1,8 +1,13 @@
 const { t, lang } = window.i18n;
 
-const params = new URLSearchParams(window.location.search);
+function usernameFromPath() {
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  const idx = segments.indexOf("profile");
+  return idx !== -1 && segments[idx + 1] ? decodeURIComponent(segments[idx + 1]) : null;
+}
+
 const stored = JSON.parse(localStorage.getItem("tekla_user") || "null");
-const username = params.get("u") || stored?.username;
+const username = usernameFromPath() || stored?.username;
 
 const profileTitle = document.getElementById("profileTitle");
 const profileSub = document.getElementById("profileSub");

@@ -343,7 +343,7 @@ function showResults(room) {
       : t("room.notFinished");
     li.innerHTML = `
       <div class="pos-badge ${posClass}">${posLabel}</div>
-      <div class="results-name"><a href="/profile.html?u=${encodeURIComponent(p.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(p.displayName)}</a>${p.userId === user.id ? escapeHtml(t("room.you")) : ""}</div>
+      <div class="results-name"><a href="/profile/${encodeURIComponent(p.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(p.displayName)}</a>${p.userId === user.id ? escapeHtml(t("room.you")) : ""}</div>
       <div class="results-meta">${escapeHtml(meta)}</div>
     `;
     resultsList.appendChild(li);

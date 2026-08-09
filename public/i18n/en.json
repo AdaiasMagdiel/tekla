@@ -17,14 +17,14 @@
     "heading": "Real-time typing race",
     "subtitle": "Choose a username, create a room or join one with a code, and race against your friends.",
     "usernameLabel": "Username",
-    "usernamePlaceholder": "e.g. john_d",
+    "usernamePlaceholder": "e.g. beremiz.samir",
     "displayNameLabel": "Your name",
-    "displayNamePlaceholder": "e.g. John",
+    "displayNamePlaceholder": "e.g. Adaías Magdiel",
     "createRoomHeading": "Create a room",
     "createRoomButton": "Create new room",
     "joinRoomHeading": "Join with a code",
     "roomCodePlaceholder": "e.g. AB3D9K",
-    "joinRoomButton": "Join room"
+    "joinRoomButton": "Join"
   },
   "room": {
     "title": "Room — Tekla",
@@ -101,7 +101,7 @@
     "offline": "offline"
   },
   "errors": {
-    "invalid_username": "Invalid username. Use 3-16 characters: letters, numbers or _.",
+    "invalid_username": "Invalid username. Use 3-16 characters: letters, numbers, _ or a dot.",
     "missing_display_name": "Please enter your name.",
     "invalid_user": "Invalid user.",
     "room_not_found": "Room not found.",
