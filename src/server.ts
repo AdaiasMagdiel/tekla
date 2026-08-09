@@ -2,13 +2,11 @@ import express, { type Request, type Response } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { createServer } from "http";
 import path from "path";
-import { fileURLToPath } from "url";
 
 import { createDb, defaultDbPath } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager, type RoomState } from "./rooms.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
 
 const textCount = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
@@ -19,7 +17,10 @@ if (textCount === 0) {
 }
 
 const SUPPORTED_LANGS = ["pt", "en"];
-const publicDir = path.join(__dirname, "..", "public");
+// process.cwd(), not __dirname: the app always runs from the project root
+// (npm scripts, Docker's WORKDIR), and compiled output under dist/ sits one
+// level deeper than src/ did, which would otherwise throw this off.
+const publicDir = path.join(process.cwd(), "public");
 
 const app = express();
 app.use(express.json());

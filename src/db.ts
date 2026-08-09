@@ -1,5 +1,4 @@
 import Database from "better-sqlite3";
-import { fileURLToPath } from "url";
 import path from "path";
 
 const SCHEMA = `
@@ -56,7 +55,11 @@ export function createDb(dbPath: string): Database.Database {
 // A path, not a connection — resolving this has no side effects, so
 // importing this module (e.g. just for createDb in tests) never touches
 // disk. Callers decide when/whether to actually open a database.
+//
+// Resolved from process.cwd() rather than this file's own location: the app
+// is always launched from the project root (npm scripts, Docker's WORKDIR),
+// so this stays correct whether db.ts runs as source (tsx) or as compiled
+// output nested under dist/, which sits at a different depth than src/.
 export function defaultDbPath(): string {
-  const __dirname = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(__dirname, "..", "data", "tekla.sqlite");
+  return path.join(process.cwd(), "data", "tekla.sqlite");
 }
