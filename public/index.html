@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tekla — Corrida de digitação ao vivo</title>
-  <meta name="description" content="Entre em uma sala, digite mais rápido que seus amigos e vença a corrida. Ranking global, PPM e precisão em tempo real." />
+  <title data-i18n="index.title">Tekla — Corrida de digitação ao vivo</title>
+  <meta name="description" content="Entre em uma sala, digite mais rápido que seus amigos e vença a corrida. Ranking global, PPM e precisão em tempo real." data-i18n-content="index.description" />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Tekla" />
-  <meta property="og:title" content="Tekla — Corrida de digitação ao vivo" />
-  <meta property="og:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real. Ranking, PPM e precisão." />
+  <meta property="og:title" content="Tekla — Corrida de digitação ao vivo" data-i18n-content="index.ogTitle" />
+  <meta property="og:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real. Ranking, PPM e precisão." data-i18n-content="index.ogDescription" />
   <meta property="og:image" content="/img/og-image.svg" />
   <meta property="og:image:type" content="image/svg+xml" />
   <meta property="og:image:width" content="1200" />
@@ -18,10 +18,11 @@
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Tekla — Corrida de digitação ao vivo" />
-  <meta name="twitter:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real." />
+  <meta name="twitter:title" content="Tekla — Corrida de digitação ao vivo" data-i18n-content="index.twitterTitle" />
+  <meta name="twitter:description" content="Crie uma sala, chame seus amigos com um código curto e corra digitando em tempo real." data-i18n-content="index.twitterDescription" />
   <meta name="twitter:image" content="/img/og-image.svg" />
 
+  <script src="/js/i18n.js"></script>
   <script src="/js/theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,31 +34,31 @@
     <header class="top">
       <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Te<span class="brand-hi">kla</span></a>
       <nav>
-        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
-        <a href="/profile.html" id="profileLink" style="display:none;"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i><span data-i18n="nav.ranking">Ranking</span></a>
+        <a href="/profile.html" id="profileLink" style="display:none;"><i data-lucide="user" class="icon"></i><span data-i18n="nav.profile">Meu perfil</span></a>
         <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
     <div class="panel">
-      <h1 class="hero-title">Corrida de digitação em tempo real</h1>
-      <p class="sub">Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.</p>
+      <h1 class="hero-title" data-i18n="index.heading">Corrida de digitação em tempo real</h1>
+      <p class="sub" data-i18n="index.subtitle">Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.</p>
 
-      <label for="username">Nome de usuário</label>
-      <input type="text" id="username" placeholder="ex: adaias_m" maxlength="16" autocomplete="off" />
+      <label for="username" data-i18n="index.usernameLabel">Nome de usuário</label>
+      <input type="text" id="username" placeholder="ex: adaias_m" data-i18n-placeholder="index.usernamePlaceholder" maxlength="16" autocomplete="off" />
 
-      <label for="displayName">Seu nome</label>
-      <input type="text" id="displayName" placeholder="ex: Adaias" maxlength="40" autocomplete="off" />
+      <label for="displayName" data-i18n="index.displayNameLabel">Seu nome</label>
+      <input type="text" id="displayName" placeholder="ex: Adaias" data-i18n-placeholder="index.displayNamePlaceholder" maxlength="40" autocomplete="off" />
 
       <div class="grid-2" style="margin-top: 24px;">
         <div>
-          <h2 style="font-size:1rem;">Criar sala</h2>
-          <button class="btn btn-primary btn-block" id="createBtn">Criar sala nova</button>
+          <h2 style="font-size:1rem;" data-i18n="index.createRoomHeading">Criar sala</h2>
+          <button class="btn btn-primary btn-block" id="createBtn" data-i18n="index.createRoomButton">Criar sala nova</button>
         </div>
         <div>
-          <h2 style="font-size:1rem;">Entrar com código</h2>
-          <input type="text" id="roomCode" placeholder="ex: AB3D9K" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
-          <button class="btn btn-secondary btn-block" id="joinBtn">Entrar na sala</button>
+          <h2 style="font-size:1rem;" data-i18n="index.joinRoomHeading">Entrar com código</h2>
+          <input type="text" id="roomCode" placeholder="ex: AB3D9K" data-i18n-placeholder="index.roomCodePlaceholder" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
+          <button class="btn btn-secondary btn-block" id="joinBtn" data-i18n="index.joinRoomButton">Entrar na sala</button>
         </div>
       </div>
 

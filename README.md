@@ -61,16 +61,26 @@ npm run seed -- my-texts.txt --lang es # force language "es"
 
 `seeds/` ships two example sets (`pt.json`, `en.json`, 12 texts each) as a starting point — edit them, replace them, or add more files for other languages.
 
-Race selection currently picks a random text across all languages in the database; per-language/per-room selection is a natural next step if you want to run multilingual events.
+## Language
+
+The UI language is **not** a picker — it's the browser's language, detected automatically (`navigator.language`), unless the URL is explicitly prefixed with `/pt` or `/en` (e.g. `tekla.example.com/en`), which forces that language and sticks (stored in the browser) for the rest of the session, even on pages visited without the prefix afterwards.
+
+When a room is created, the race text is picked from the host's detected/forced language if any texts exist for it, falling back to any available language otherwise (so a room can always start, even without texts in every language).
+
+Currently supported: `pt`, `en`. To add another language:
+
+1. Add `seeds/<code>.json` (or `.txt`) with race texts and run `npm run seed -- seeds/<code>.json`.
+2. Add `public/i18n/<code>.json` with the same keys as `public/i18n/en.json`, translated.
+3. Add `<code>` to `SUPPORTED_LANGS` in `src/server.js` and `public/js/i18n.js`.
 
 ## Project structure
 
 ```
 src/
-  server.js   REST API + WebSocket server
+  server.js   REST API + WebSocket server, /pt and /en page routes
   rooms.js    In-memory room state, race progress, live stats
   db.js       SQLite schema
-  texts.js    Random text picker used when a race starts
+  texts.js    Random (language-aware) text picker used when a race starts
   users.js    User lookup/creation helpers
 scripts/
   seed-texts.mjs  CLI to load race texts into the database
@@ -82,6 +92,8 @@ public/
   mirror.html     Read-only "mirror" view for big screens
   ranking.html    Global leaderboard
   profile.html    Per-user stats and race history
+  i18n/           UI string dictionaries (pt.json, en.json)
+  js/i18n.js      Language detection + translation, loaded first on every page
 ```
 
 ## License

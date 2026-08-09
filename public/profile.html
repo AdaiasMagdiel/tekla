@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Perfil — Tekla</title>
-  <meta name="description" content="Estatísticas e histórico de corridas no Tekla." />
+  <title data-i18n="profile.title">Perfil — Tekla</title>
+  <meta name="description" content="Estatísticas e histórico de corridas no Tekla." data-i18n-content="profile.description" />
+  <script src="/js/i18n.js"></script>
   <script src="/js/theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,19 +17,19 @@
     <header class="top">
       <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Te<span class="brand-hi">kla</span></a>
       <nav>
-        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
-        <a href="/"><i data-lucide="play" class="icon"></i>Jogar</a>
+        <a href="/ranking.html"><i data-lucide="trophy" class="icon"></i><span data-i18n="nav.ranking">Ranking</span></a>
+        <a href="/"><i data-lucide="play" class="icon"></i><span data-i18n="nav.play">Jogar</span></a>
         <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
     <div class="panel">
-      <h1 id="profileTitle">Perfil</h1>
+      <h1 id="profileTitle" data-i18n="profile.defaultHeading">Perfil</h1>
       <p class="sub" id="profileSub"></p>
 
       <div class="stats-row" id="summaryStats"></div>
 
-      <h2 style="margin-top:28px;"><i data-lucide="history" class="icon"></i>Histórico de corridas</h2>
+      <h2 style="margin-top:28px;"><i data-lucide="history" class="icon"></i><span data-i18n="profile.historyHeading">Histórico de corridas</span></h2>
       <div id="historyWrap"></div>
     </div>
   </div>

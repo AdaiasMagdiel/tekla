@@ -1,3 +1,5 @@
+const { t, lang } = window.i18n;
+
 const usernameEl = document.getElementById("username");
 const displayNameEl = document.getElementById("displayName");
 const roomCodeEl = document.getElementById("roomCode");
@@ -16,6 +18,9 @@ function showError(msg) {
   errorBox.textContent = msg;
   errorBox.classList.add("show");
 }
+function showErrorCode(code) {
+  showError(t(`errors.${code}`));
+}
 function clearError() {
   errorBox.classList.remove("show");
   errorBox.textContent = "";
@@ -27,11 +32,11 @@ async function ensureUser() {
   const displayName = displayNameEl.value.trim();
 
   if (!/^[a-zA-Z0-9_]{3,16}$/.test(username)) {
-    showError("Username inválido. Use 3-16 caracteres: letras, números ou _.");
+    showErrorCode("invalid_username");
     return null;
   }
   if (!displayName) {
-    showError("Informe seu nome.");
+    showErrorCode("missing_display_name");
     return null;
   }
 
@@ -42,7 +47,7 @@ async function ensureUser() {
   });
   const data = await res.json();
   if (!res.ok) {
-    showError(data.error || "Erro ao criar usuário.");
+    showError(data.error ? t(`errors.${data.error}`) : t("errors.create_user_failed"));
     return null;
   }
   localStorage.setItem("tekla_user", JSON.stringify(data));
@@ -57,11 +62,11 @@ createBtn.addEventListener("click", async () => {
   const res = await fetch("/api/rooms", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId: user.id }),
+    body: JSON.stringify({ userId: user.id, lang }),
   });
   const data = await res.json();
   createBtn.disabled = false;
-  if (!res.ok) return showError(data.error || "Erro ao criar sala.");
+  if (!res.ok) return showError(data.error ? t(`errors.${data.error}`) : t("errors.create_room_failed"));
   window.location.href = `/room.html?code=${data.code}`;
 });
 
@@ -72,7 +77,7 @@ joinBtn.addEventListener("click", async () => {
 
   const code = roomCodeEl.value.trim().toUpperCase();
   if (code.length < 4) {
-    showError("Informe um código de sala válido.");
+    showErrorCode("invalid_room_code");
     joinBtn.disabled = false;
     return;
   }
@@ -84,7 +89,7 @@ joinBtn.addEventListener("click", async () => {
   });
   const data = await res.json();
   joinBtn.disabled = false;
-  if (!res.ok) return showError(data.error || "Erro ao entrar na sala.");
+  if (!res.ok) return showError(data.error ? t(`errors.${data.error}`) : t("errors.join_room_failed"));
   window.location.href = `/room.html?code=${code}`;
 });
 

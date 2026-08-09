@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Telão — Tekla</title>
+  <title data-i18n="mirror.title">Telão — Tekla</title>
   <meta name="robots" content="noindex" />
+  <script src="/js/i18n.js"></script>
   <script src="/js/theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -24,10 +25,10 @@
     </header>
 
     <div id="codeForm" class="panel mirror-code-form" style="display:none;">
-      <h1><i data-lucide="tv" class="icon"></i>Modo telão</h1>
-      <p class="sub">Informe o código da sala para exibir a corrida em tempo real.</p>
-      <input type="text" id="codeInput" placeholder="ex: AB3D9K" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
-      <button class="btn btn-primary btn-block" id="codeSubmit">Exibir corrida</button>
+      <h1><i data-lucide="tv" class="icon"></i><span data-i18n="mirror.formHeading">Modo telão</span></h1>
+      <p class="sub" data-i18n="mirror.formSubtitle">Informe o código da sala para exibir a corrida em tempo real.</p>
+      <input type="text" id="codeInput" placeholder="ex: AB3D9K" data-i18n-placeholder="mirror.roomCodePlaceholder" maxlength="6" style="text-transform:uppercase;" autocomplete="off" />
+      <button class="btn btn-primary btn-block" id="codeSubmit" data-i18n="mirror.submitButton">Exibir corrida</button>
       <div class="error-box" id="errorBox"></div>
     </div>
 
@@ -37,7 +38,7 @@
       <div class="mirror-text-panel blurred" id="mirrorTextPanel"></div>
 
       <div id="mirrorResults" style="display:none;">
-        <h2><i data-lucide="flag" class="icon"></i>Resultado da corrida</h2>
+        <h2><i data-lucide="flag" class="icon"></i><span data-i18n="mirror.resultsHeading">Resultado da corrida</span></h2>
         <ul class="results-list mirror-results-list" id="mirrorResultsList"></ul>
       </div>
     </div>

@@ -1,3 +1,5 @@
+const { t } = window.i18n;
+
 const params = new URLSearchParams(window.location.search);
 let roomCode = (params.get("code") || "").toUpperCase();
 
@@ -30,7 +32,7 @@ function connect(code) {
   mirrorStatus.style.display = "inline";
   codeForm.style.display = "none";
   mirrorMain.style.display = "block";
-  mirrorStatus.textContent = "conectando…";
+  mirrorStatus.textContent = t("mirror.statusConnecting");
 
   const proto = window.location.protocol === "https:" ? "wss" : "ws";
   ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${code}&spectator=1`);
@@ -42,7 +44,7 @@ function connect(code) {
       codeForm.style.display = "block";
       roomCodeLabel.style.display = "none";
       mirrorStatus.style.display = "none";
-      showError(msg.message);
+      showError(t(`errors.${msg.error}`));
       history.replaceState(null, "", "/mirror.html");
     } else if (msg.type === "state") {
       mirrorStatus.textContent = statusLabel(msg.room.status);
@@ -54,23 +56,30 @@ function connect(code) {
       raceStarted = true;
       mirrorTextPanel.textContent = msg.text;
       mirrorTextPanel.classList.remove("blurred");
-      mirrorStatus.textContent = "corrida em andamento";
+      mirrorStatus.textContent = t("mirror.statusRacing");
     } else if (msg.type === "progress") {
       render(msg.room);
     } else if (msg.type === "finish") {
-      mirrorStatus.textContent = "corrida finalizada";
+      mirrorStatus.textContent = t("mirror.statusFinished");
       render(msg.room);
       showResults(msg.room);
     }
   });
 
   ws.addEventListener("close", () => {
-    mirrorStatus.textContent = "conexão perdida";
+    mirrorStatus.textContent = t("mirror.statusDisconnected");
   });
 }
 
 function statusLabel(status) {
-  return { waiting: "aguardando início", countdown: "preparando…", racing: "corrida em andamento", finished: "corrida finalizada" }[status] || status;
+  return (
+    {
+      waiting: t("mirror.statusWaiting"),
+      countdown: t("mirror.statusCountdown"),
+      racing: t("mirror.statusRacing"),
+      finished: t("mirror.statusFinished"),
+    }[status] || status
+  );
 }
 
 function render(room) {
@@ -91,16 +100,16 @@ function render(room) {
 
       const nameRow = document.createElement("div");
       nameRow.className = "name-row";
-      nameRow.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)} ${!p.connected ? '<span class="badge-pill waiting">offline</span>' : ""}`;
+      nameRow.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)} ${!p.connected ? `<span class="badge-pill waiting">${escapeHtml(t("mirror.offline"))}</span>` : ""}`;
       lane.appendChild(nameRow);
 
       const metrics = document.createElement("div");
       metrics.className = "metrics";
       const secs = ((p.elapsedMs || 0) / 1000).toFixed(1);
       metrics.innerHTML = `
-        <div class="metric"><div class="val">${p.wpm || 0}</div><div class="lbl">PPM</div></div>
-        <div class="metric"><div class="val">${p.accuracy ?? 100}%</div><div class="lbl">Precisão</div></div>
-        <div class="metric ${p.finished ? "finish-badge" : ""}"><div class="val">${secs}s</div><div class="lbl">${p.finished ? `#${p.position}` : "Tempo"}</div></div>
+        <div class="metric"><div class="val">${p.wpm || 0}</div><div class="lbl">${escapeHtml(t("mirror.metricWpm"))}</div></div>
+        <div class="metric"><div class="val">${p.accuracy ?? 100}%</div><div class="lbl">${escapeHtml(t("mirror.metricAccuracy"))}</div></div>
+        <div class="metric ${p.finished ? "finish-badge" : ""}"><div class="val">${secs}s</div><div class="lbl">${p.finished ? `#${p.position}` : escapeHtml(t("mirror.metricTime"))}</div></div>
       `;
       lane.appendChild(metrics);
 
@@ -120,7 +129,7 @@ function render(room) {
 
 function showCountdown(n) {
   countdownOverlay.classList.add("show");
-  countdownNum.textContent = n > 0 ? n : "Vai!";
+  countdownNum.textContent = n > 0 ? n : t("countdown.go");
   countdownNum.classList.remove("c-red", "c-yellow", "c-green");
   countdownNum.classList.add(n >= 4 ? "c-red" : n >= 2 ? "c-yellow" : "c-green");
   countdownNum.style.animation = "none";
@@ -142,11 +151,13 @@ function showResults(room) {
     const li = document.createElement("li");
     const posClass = p.position === 1 ? "gold" : p.position === 2 ? "silver" : p.position === 3 ? "bronze" : "";
     const posLabel = p.finished ? `#${p.position}` : "—";
-    const meta = p.finished ? `${(p.finishTimeMs / 1000).toFixed(1)}s · ${p.wpm} PPM · ${p.accuracy}% precisão` : "não terminou";
+    const meta = p.finished
+      ? t("room.finishSummary", { time: (p.finishTimeMs / 1000).toFixed(1), wpm: p.wpm, accuracy: p.accuracy })
+      : t("room.notFinished");
     li.innerHTML = `
       <div class="pos-badge ${posClass}">${posLabel}</div>
       <div class="results-name">${escapeHtml(p.displayName)}</div>
-      <div class="results-meta">${meta}</div>
+      <div class="results-meta">${escapeHtml(meta)}</div>
     `;
     mirrorResultsList.appendChild(li);
   });
@@ -160,7 +171,7 @@ function escapeHtml(str) {
 
 codeSubmit.addEventListener("click", () => {
   const code = codeInput.value.trim().toUpperCase();
-  if (code.length < 4) return showError("Informe um código de sala válido.");
+  if (code.length < 4) return showError(t("errors.invalid_room_code"));
   history.replaceState(null, "", `/mirror.html?code=${code}`);
   connect(code);
 });

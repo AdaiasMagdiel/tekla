@@ -17,23 +17,38 @@ if (textCount === 0) {
   );
 }
 
+const SUPPORTED_LANGS = ["pt", "en"];
+const publicDir = path.join(__dirname, "..", "public");
+
 const app = express();
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "..", "public")));
+
+// /pt and /en serve the exact same static pages as the unprefixed routes;
+// the language itself is resolved and applied client-side (see i18n.js).
+// This just makes sure the URL prefix a user typed actually resolves to a page.
+const PAGES = ["index.html", "room.html", "ranking.html", "profile.html", "mirror.html"];
+for (const lang of SUPPORTED_LANGS) {
+  app.get(`/${lang}`, (req, res) => res.sendFile(path.join(publicDir, "index.html")));
+  for (const page of PAGES) {
+    app.get(`/${lang}/${page}`, (req, res) => res.sendFile(path.join(publicDir, page)));
+  }
+}
+
+app.use(express.static(publicDir));
 
 const rooms = new RoomManager(db);
 
 // ---------- REST API ----------
+// Error responses use short codes (not localized strings) — the client maps
+// them to the active UI language via public/i18n/<lang>.json.
 
 app.post("/api/users", (req, res) => {
   const { username, displayName } = req.body || {};
   if (!isValidUsername(username)) {
-    return res.status(400).json({
-      error: "Username inválido. Use 3-16 caracteres: letras, números ou _.",
-    });
+    return res.status(400).json({ error: "invalid_username" });
   }
   const name = (displayName || "").trim().slice(0, 40);
-  if (!name) return res.status(400).json({ error: "Informe seu nome." });
+  if (!name) return res.status(400).json({ error: "missing_display_name" });
 
   const existing = getUserByUsername(db, username);
   if (existing) {
@@ -48,27 +63,27 @@ app.post("/api/users", (req, res) => {
 });
 
 app.post("/api/rooms", (req, res) => {
-  const { userId } = req.body || {};
+  const { userId, lang } = req.body || {};
   const user = getUserById(db, userId);
-  if (!user) return res.status(401).json({ error: "Usuário inválido." });
-  const room = rooms.createRoom(user);
+  if (!user) return res.status(401).json({ error: "invalid_user" });
+  const room = rooms.createRoom(user, SUPPORTED_LANGS.includes(lang) ? lang : null);
   res.json({ code: room.code });
 });
 
 app.get("/api/rooms/:code", (req, res) => {
   const room = rooms.getByCode(req.params.code);
-  if (!room) return res.status(404).json({ error: "Sala não encontrada." });
+  if (!room) return res.status(404).json({ error: "room_not_found" });
   res.json(rooms.publicState(room));
 });
 
 app.post("/api/rooms/:code/join", (req, res) => {
   const { userId } = req.body || {};
   const user = getUserById(db, userId);
-  if (!user) return res.status(401).json({ error: "Usuário inválido." });
+  if (!user) return res.status(401).json({ error: "invalid_user" });
   const room = rooms.getByCode(req.params.code);
-  if (!room) return res.status(404).json({ error: "Sala não encontrada." });
+  if (!room) return res.status(404).json({ error: "room_not_found" });
   if (room.status !== "waiting") {
-    return res.status(409).json({ error: "A corrida já começou." });
+    return res.status(409).json({ error: "race_already_started" });
   }
   rooms.addParticipant(room, user);
   res.json(rooms.publicState(room));
@@ -94,7 +109,7 @@ app.get("/api/leaderboard", (req, res) => {
 
 app.get("/api/users/:username/stats", (req, res) => {
   const user = getUserByUsername(db, req.params.username);
-  if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+  if (!user) return res.status(404).json({ error: "user_not_found" });
 
   const summary = db
     .prepare(
@@ -168,7 +183,7 @@ wss.on("connection", (ws, req) => {
 
   const room = rooms.getByCode(code);
   if (!room) {
-    ws.send(JSON.stringify({ type: "error", message: "Sala não encontrada." }));
+    ws.send(JSON.stringify({ type: "error", error: "room_not_found" }));
     ws.close();
     return;
   }
@@ -184,7 +199,7 @@ wss.on("connection", (ws, req) => {
   const userId = url.searchParams.get("userId");
   const user = getUserById(db, userId);
   if (!user) {
-    ws.send(JSON.stringify({ type: "error", message: "Usuário inválido." }));
+    ws.send(JSON.stringify({ type: "error", error: "invalid_user" }));
     ws.close();
     return;
   }
@@ -207,12 +222,7 @@ wss.on("connection", (ws, req) => {
       if (user.id !== room.hostUserId) return;
       if (room.status !== "waiting") return;
       if (!room.text) {
-        ws.send(
-          JSON.stringify({
-            type: "error",
-            message: "Nenhum texto de corrida cadastrado. Rode `npm run seed -- seeds/` para carregar os textos de exemplo.",
-          })
-        );
+        ws.send(JSON.stringify({ type: "error", error: "no_race_texts" }));
         return;
       }
 

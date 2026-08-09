@@ -3,8 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ranking — Tekla</title>
-  <meta name="description" content="Ranking global dos melhores digitadores do Tekla." />
+  <title data-i18n="ranking.title">Ranking — Tekla</title>
+  <meta name="description" content="Ranking global dos melhores digitadores do Tekla." data-i18n-content="ranking.description" />
+  <script src="/js/i18n.js"></script>
   <script src="/js/theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -16,15 +17,15 @@
     <header class="top">
       <a class="brand" href="/"><i data-lucide="flag" class="icon icon-lg flag"></i>Te<span class="brand-hi">kla</span></a>
       <nav>
-        <a href="/"><i data-lucide="play" class="icon"></i>Jogar</a>
-        <a href="/profile.html"><i data-lucide="user" class="icon"></i>Meu perfil</a>
+        <a href="/"><i data-lucide="play" class="icon"></i><span data-i18n="nav.play">Jogar</span></a>
+        <a href="/profile.html"><i data-lucide="user" class="icon"></i><span data-i18n="nav.profile">Meu perfil</span></a>
         <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
     <div class="panel">
-      <h1><i data-lucide="trophy" class="icon"></i>Ranking global</h1>
-      <p class="sub">Os pilotos mais rápidos, por melhor PPM (palavras por minuto).</p>
+      <h1><i data-lucide="trophy" class="icon"></i><span data-i18n="ranking.heading">Ranking global</span></h1>
+      <p class="sub" data-i18n="ranking.subtitle">Os pilotos mais rápidos, por melhor PPM (palavras por minuto).</p>
       <div id="tableWrap"></div>
     </div>
   </div>

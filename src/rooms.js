@@ -22,7 +22,7 @@ export class RoomManager {
     this.codeToId = new Map(); // code -> roomId
   }
 
-  createRoom(hostUser) {
+  createRoom(hostUser, lang) {
     let code;
     do {
       code = genCode();
@@ -43,7 +43,7 @@ export class RoomManager {
       hostUserId: hostUser.id,
       status: "waiting",
       // Picked up front so the (blurred) text can be shown while everyone waits.
-      text: pickRandomText(this.db),
+      text: pickRandomText(this.db, lang),
       participants: new Map(),
       spectators: new Set(), // read-only "mirror" viewers (big screens)
       createdAt: now,

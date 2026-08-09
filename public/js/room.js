@@ -1,3 +1,5 @@
+const { t } = window.i18n;
+
 const params = new URLSearchParams(window.location.search);
 const roomCode = (params.get("code") || "").toUpperCase();
 const user = JSON.parse(localStorage.getItem("tekla_user") || "null");
@@ -25,6 +27,7 @@ const countdownNum = document.getElementById("countdownNum");
 const resultsArea = document.getElementById("resultsArea");
 const resultsList = document.getElementById("resultsList");
 const copyHint = document.getElementById("copyHint");
+const copyHintText = document.getElementById("copyHintText");
 
 let targetText = null;
 let startedAt = null;
@@ -38,8 +41,8 @@ let statsTicker = null;
 copyHint.addEventListener("click", () => {
   const url = `${window.location.origin}/room.html?code=${roomCode}`;
   navigator.clipboard.writeText(url).then(() => {
-    copyHint.textContent = "link copiado!";
-    setTimeout(() => (copyHint.textContent = "clique para copiar o link do convite"), 1500);
+    copyHintText.textContent = t("room.copyHintCopied");
+    setTimeout(() => (copyHintText.textContent = t("room.copyHint")), 1500);
   });
 });
 
@@ -49,7 +52,7 @@ const ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${roomCode}
 ws.addEventListener("message", (ev) => {
   const msg = JSON.parse(ev.data);
   if (msg.type === "error") {
-    alert(msg.message);
+    alert(t(`errors.${msg.error}`));
     window.location.href = "/";
   } else if (msg.type === "state") {
     latestState = msg.room;
@@ -73,7 +76,7 @@ ws.addEventListener("message", (ev) => {
 
 ws.addEventListener("close", () => {
   if (latestState && latestState.status !== "finished") {
-    waitingHostMsg.textContent = "Conexão perdida. Recarregue a página.";
+    waitingHostMsg.textContent = t("room.connectionLost");
     waitingHostMsg.style.display = "block";
   }
 });
@@ -88,7 +91,7 @@ function renderState(room) {
   if (room.status === "waiting") {
     startBtn.style.display = isHost ? "inline-flex" : "none";
     waitingHostMsg.style.display = isHost ? "none" : "block";
-    if (!isHost) waitingHostMsg.textContent = "Aguardando o dono da sala começar…";
+    if (!isHost) waitingHostMsg.textContent = t("room.waitingHost");
   } else {
     startBtn.style.display = "none";
     waitingHostMsg.style.display = "none";
@@ -117,10 +120,10 @@ function renderTrack(room) {
 
       const statusBadge = p.connected
         ? ""
-        : '<span class="badge-pill waiting">offline</span>';
+        : `<span class="badge-pill waiting">${escapeHtml(t("room.offline"))}</span>`;
       const label = document.createElement("div");
       label.className = "label";
-      label.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${p.userId === user.id ? " (você)" : ""} ${statusBadge}`;
+      label.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${p.userId === user.id ? escapeHtml(t("room.you")) : ""} ${statusBadge}`;
       lane.appendChild(label);
 
       const car = document.createElement("div");
@@ -144,7 +147,7 @@ function renderTrack(room) {
 
 function showCountdown(n) {
   countdownOverlay.classList.add("show");
-  countdownNum.textContent = n > 0 ? n : "Vai!";
+  countdownNum.textContent = n > 0 ? n : t("countdown.go");
   countdownNum.classList.remove("c-red", "c-yellow", "c-green");
   countdownNum.classList.add(n >= 4 ? "c-red" : n >= 2 ? "c-yellow" : "c-green");
   countdownNum.style.animation = "none";
@@ -164,7 +167,7 @@ function beginRace() {
   typingInput.disabled = false;
   typingInput.value = "";
   typingInput.dataset.prevLen = 0;
-  typingInput.placeholder = "Comece a digitar…";
+  typingInput.placeholder = t("room.typingPlaceholderActive");
   typingInput.focus();
 
   // Keep PPM/precisão ticking even while the user pauses without typing,
@@ -326,12 +329,12 @@ function showResults(room) {
     const posClass = p.position === 1 ? "gold" : p.position === 2 ? "silver" : p.position === 3 ? "bronze" : "";
     const posLabel = p.finished ? `#${p.position}` : "—";
     const meta = p.finished
-      ? `${(p.finishTimeMs / 1000).toFixed(1)}s · ${p.wpm} PPM · ${p.accuracy}% precisão`
-      : "não terminou";
+      ? t("room.finishSummary", { time: (p.finishTimeMs / 1000).toFixed(1), wpm: p.wpm, accuracy: p.accuracy })
+      : t("room.notFinished");
     li.innerHTML = `
       <div class="pos-badge ${posClass}">${posLabel}</div>
-      <div class="results-name"><a href="/profile.html?u=${encodeURIComponent(p.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(p.displayName)}</a>${p.userId === user.id ? " (você)" : ""}</div>
-      <div class="results-meta">${meta}</div>
+      <div class="results-name"><a href="/profile.html?u=${encodeURIComponent(p.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(p.displayName)}</a>${p.userId === user.id ? escapeHtml(t("room.you")) : ""}</div>
+      <div class="results-meta">${escapeHtml(meta)}</div>
     `;
     resultsList.appendChild(li);
   });

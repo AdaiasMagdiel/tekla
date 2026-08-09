@@ -1,3 +1,5 @@
+const { t } = window.i18n;
+
 const tableWrap = document.getElementById("tableWrap");
 
 function escapeHtml(str) {
@@ -10,11 +12,11 @@ fetch("/api/leaderboard")
   .then((r) => r.json())
   .then((rows) => {
     if (!rows.length) {
-      tableWrap.innerHTML = '<div class="empty-msg">Ninguém correu ainda. Seja o primeiro!</div>';
+      tableWrap.innerHTML = `<div class="empty-msg">${escapeHtml(t("ranking.empty"))}</div>`;
       return;
     }
     let html = `<table class="leaderboard">
-      <thead><tr><th>#</th><th>Piloto</th><th>Melhor PPM</th><th>Precisão média</th><th>Corridas</th><th>Vitórias</th></tr></thead><tbody>`;
+      <thead><tr><th>${escapeHtml(t("ranking.thPosition"))}</th><th>${escapeHtml(t("ranking.thPilot"))}</th><th>${escapeHtml(t("ranking.thBestWpm"))}</th><th>${escapeHtml(t("ranking.thAvgAccuracy"))}</th><th>${escapeHtml(t("ranking.thRaces"))}</th><th>${escapeHtml(t("ranking.thWins"))}</th></tr></thead><tbody>`;
     rows.forEach((r, i) => {
       html += `<tr>
         <td>${i + 1}</td>
@@ -29,5 +31,5 @@ fetch("/api/leaderboard")
     tableWrap.innerHTML = html;
   })
   .catch(() => {
-    tableWrap.innerHTML = '<div class="empty-msg">Erro ao carregar o ranking.</div>';
+    tableWrap.innerHTML = `<div class="empty-msg">${escapeHtml(t("ranking.loadError"))}</div>`;
   });

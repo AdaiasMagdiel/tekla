@@ -1,3 +1,5 @@
+const { t, lang } = window.i18n;
+
 const params = new URLSearchParams(window.location.search);
 const stored = JSON.parse(localStorage.getItem("tekla_user") || "null");
 const username = params.get("u") || stored?.username;
@@ -17,8 +19,10 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+const DATE_LOCALES = { pt: "pt-BR", en: "en-US" };
+
 function formatDate(ts) {
-  return new Date(ts).toLocaleString("pt-BR", {
+  return new Date(ts).toLocaleString(DATE_LOCALES[lang] || "en-US", {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
@@ -28,7 +32,10 @@ function formatDate(ts) {
 
 fetch(`/api/users/${encodeURIComponent(username)}/stats`)
   .then(async (r) => {
-    if (!r.ok) throw new Error((await r.json()).error || "Erro ao carregar perfil.");
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      throw new Error(data.error ? t(`errors.${data.error}`) : t("errors.load_profile_failed"));
+    }
     return r.json();
   })
   .then((data) => {
@@ -37,26 +44,26 @@ fetch(`/api/users/${encodeURIComponent(username)}/stats`)
 
     const s = data.summary;
     summaryStats.innerHTML = `
-      <div class="stat"><div class="val">${s.bestWpm}</div><div class="lbl">Melhor PPM</div></div>
-      <div class="stat"><div class="val">${s.avgWpm}</div><div class="lbl">PPM médio</div></div>
-      <div class="stat"><div class="val">${s.avgAccuracy}%</div><div class="lbl">Precisão média</div></div>
-      <div class="stat"><div class="val">${s.races}</div><div class="lbl">Corridas</div></div>
-      <div class="stat"><div class="val">${s.wins}</div><div class="lbl">Vitórias</div></div>
-      <div class="stat"><div class="val">${s.winRate}%</div><div class="lbl">Taxa de vitória</div></div>
+      <div class="stat"><div class="val">${s.bestWpm}</div><div class="lbl">${escapeHtml(t("profile.statBestWpm"))}</div></div>
+      <div class="stat"><div class="val">${s.avgWpm}</div><div class="lbl">${escapeHtml(t("profile.statAvgWpm"))}</div></div>
+      <div class="stat"><div class="val">${s.avgAccuracy}%</div><div class="lbl">${escapeHtml(t("profile.statAvgAccuracy"))}</div></div>
+      <div class="stat"><div class="val">${s.races}</div><div class="lbl">${escapeHtml(t("profile.statRaces"))}</div></div>
+      <div class="stat"><div class="val">${s.wins}</div><div class="lbl">${escapeHtml(t("profile.statWins"))}</div></div>
+      <div class="stat"><div class="val">${s.winRate}%</div><div class="lbl">${escapeHtml(t("profile.statWinRate"))}</div></div>
     `;
 
     if (!data.history.length) {
-      historyWrap.innerHTML = '<div class="empty-msg">Nenhuma corrida ainda.</div>';
+      historyWrap.innerHTML = `<div class="empty-msg">${escapeHtml(t("profile.noRaces"))}</div>`;
       return;
     }
 
     let html = `<table class="leaderboard">
-      <thead><tr><th>Quando</th><th>Sala</th><th>Posição</th><th>PPM</th><th>Precisão</th><th>Tempo</th></tr></thead><tbody>`;
+      <thead><tr><th>${escapeHtml(t("profile.thWhen"))}</th><th>${escapeHtml(t("profile.thRoom"))}</th><th>${escapeHtml(t("profile.thPosition"))}</th><th>${escapeHtml(t("profile.thWpm"))}</th><th>${escapeHtml(t("profile.thAccuracy"))}</th><th>${escapeHtml(t("profile.thTime"))}</th></tr></thead><tbody>`;
     data.history.forEach((h) => {
       html += `<tr>
         <td>${formatDate(h.finishedAt)}</td>
         <td><code class="room-code" style="font-size:0.8rem;">${escapeHtml(h.roomCode)}</code></td>
-        <td>${h.position}º de ${h.totalRacers}</td>
+        <td>${escapeHtml(t("profile.positionOf", { position: h.position, total: h.totalRacers }))}</td>
         <td>${h.wpm}</td>
         <td>${h.accuracy}%</td>
         <td>${(h.timeMs / 1000).toFixed(1)}s</td>
@@ -66,7 +73,7 @@ fetch(`/api/users/${encodeURIComponent(username)}/stats`)
     historyWrap.innerHTML = html;
   })
   .catch((err) => {
-    profileTitle.textContent = "Perfil não encontrado";
+    profileTitle.textContent = t("profile.notFound");
     profileSub.textContent = "";
     historyWrap.innerHTML = `<div class="empty-msg">${escapeHtml(err.message)}</div>`;
   });
