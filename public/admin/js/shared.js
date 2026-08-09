@@ -15,6 +15,19 @@ function formatDateTime(ts) {
   });
 }
 
+// lucide.createIcons() runs in the middle of every render function, right
+// before the event listeners for that render get wired up. If it throws for
+// any reason (e.g. the unpkg CDN didn't load), the exception was aborting
+// the rest of the function — so buttons rendered after it (delete, close,
+// save...) silently never got their click handlers attached.
+function safeCreateIcons() {
+  try {
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    console.error("lucide.createIcons failed:", err);
+  }
+}
+
 async function adminFetch(url, opts) {
   const res = await fetch(url, {
     ...opts,
