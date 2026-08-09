@@ -36,6 +36,10 @@ FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
+# Loads seeds/ automatically on first boot if the database is empty — no
+# manual `docker exec ... seed` step needed out of the box. Unset this (or
+# override it) if you'd rather seed manually with your own texts instead.
+ENV AUTO_SEED_DIR=seeds
 
 COPY --from=prod-deps /app/node_modules ./node_modules
 COPY package.json package-lock.json ./
