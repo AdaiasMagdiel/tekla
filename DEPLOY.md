@@ -37,6 +37,7 @@ Either way: **the thing to verify is that `/app/data` is backed by a named volum
 - `PORT` — defaults to `3000`. Only change it if your platform requires a specific port.
 - `DATABASE_PATH` — overrides the default `data/tekla.sqlite` location. Not needed unless you have a reason to move it.
 - `AUTO_SEED_DIR` — defaults to `seeds` in this image (see below). Unset it in Dokploy's environment variables if you'd rather seed manually instead.
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` — both unset by default, which keeps `/admin` fully disabled (404, not just unauthenticated). Set both in Dokploy's environment variables to enable the admin panel at `https://<your-domain>/admin` (HTTP Basic Auth — the browser prompts for the credentials). Pick a strong password; there's no rate limiting on login attempts.
 
 ## Seeding race texts
 
