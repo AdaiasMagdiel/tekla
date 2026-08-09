@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 import { createServer } from "http";
+import { readFileSync } from "fs";
 import path from "path";
 
 import { createDb, defaultDbPath } from "./db.js";
@@ -51,33 +52,63 @@ const publicDir = path.join(process.cwd(), "public");
 const app = express();
 app.use(express.json());
 
-// No .html in any URL the app generates. At the root (no language prefix)
-// this falls entirely out of express.static's `extensions` option below —
-// /ranking transparently resolves to public/ranking.html on disk, same for
-// /, /profile, /mirror. That option doesn't reach under /pt or /en though
-// (those aren't real files, just a virtual prefix), so those get the same
-// routes registered explicitly. /room, /mirror, and /profile also get a
-// dynamic :code/:username segment for pretty room/mirror/profile links.
+// Cache busting: every local /css, /js and /img reference inside each HTML
+// page gets a `?v=<boot time>` query string appended, and those asset
+// responses are served with a long, immutable Cache-Control below. The HTML
+// itself is served with Cache-Control: no-cache (always revalidated), so a
+// deploy (new process boot -> new ASSET_VERSION -> new query strings baked
+// into the HTML) reaches every visitor on their next request without them
+// needing to hard-refresh. External URLs (CDN fonts/icons) are untouched.
+const ASSET_VERSION = String(Date.now());
+const ASSET_URL_RE = /((?:src|href)=")(\/(?:css|js|img)\/[^"]+)(")/g;
+
+function renderPage(file: string): string {
+  const html = readFileSync(path.join(publicDir, file), "utf-8");
+  return html.replace(ASSET_URL_RE, (_match, open, url, close) => `${open}${url}?v=${ASSET_VERSION}${close}`);
+}
+
+const pageCache = new Map<string, string>();
+function sendPage(res: Response, file: string): void {
+  let html = pageCache.get(file);
+  if (!html) {
+    html = renderPage(file);
+    pageCache.set(file, html);
+  }
+  res.set("Cache-Control", "no-cache").type("html").send(html);
+}
+
+// No .html in any URL the app generates, at the root or under /pt / /en.
+// /room, /mirror, and /profile also get a dynamic :code/:username segment
+// for pretty room/mirror/profile links.
 const PAGES: Record<string, string> = {
+  "": "index.html",
   ranking: "ranking.html",
   profile: "profile.html",
   mirror: "mirror.html",
 };
 
 for (const prefix of ["", ...SUPPORTED_LANGS.map((l) => `/${l}`)]) {
-  if (prefix) {
-    app.get(prefix, (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
-    for (const [clean, file] of Object.entries(PAGES)) {
-      app.get(`${prefix}/${clean}`, (_req, res) => res.sendFile(path.join(publicDir, file)));
-      app.get(`${prefix}/${file}`, (_req, res) => res.sendFile(path.join(publicDir, file)));
-    }
+  for (const [clean, file] of Object.entries(PAGES)) {
+    app.get(clean ? `${prefix}/${clean}` : prefix || "/", (_req, res) => sendPage(res, file));
+    app.get(`${prefix}/${file}`, (_req, res) => sendPage(res, file));
   }
-  app.get(`${prefix}/room/:code`, (_req, res) => res.sendFile(path.join(publicDir, "room.html")));
-  app.get(`${prefix}/mirror/:code`, (_req, res) => res.sendFile(path.join(publicDir, "mirror.html")));
-  app.get(`${prefix}/profile/:username`, (_req, res) => res.sendFile(path.join(publicDir, "profile.html")));
+  app.get(`${prefix}/room/:code`, (_req, res) => sendPage(res, "room.html"));
+  app.get(`${prefix}/mirror/:code`, (_req, res) => sendPage(res, "mirror.html"));
+  app.get(`${prefix}/profile/:username`, (_req, res) => sendPage(res, "profile.html"));
 }
 
-app.use(express.static(publicDir, { extensions: ["html"] }));
+app.use(
+  express.static(publicDir, {
+    index: false, // "/" is handled above, not by static's default index file
+    setHeaders: (res, filePath) => {
+      // Safe to cache forever: the URL only stays the same while the
+      // content does, since the query string changes on every deploy.
+      if (/\.(css|js)$/.test(filePath)) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  })
+);
 
 const rooms = new RoomManager(db);
 
