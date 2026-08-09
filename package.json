@@ -4,7 +4,8 @@
   "description": "Real-time multiplayer typing race game with rooms, live WPM/accuracy tracking, a big-screen mirror view, and a global leaderboard.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "seed": "node scripts/seed-texts.mjs"
   },
   "keywords": ["typing-game", "typing-race", "websocket", "sqlite", "express"],
   "author": "Adaías Magdiel",

@@ -5,12 +5,17 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { db } from "./db.js";
-import { syncSeedTexts } from "./texts.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager } from "./rooms.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-syncSeedTexts(db);
+
+const textCount = db.prepare("SELECT COUNT(*) as c FROM texts").get().c;
+if (textCount === 0) {
+  console.warn(
+    "No race texts in the database yet. Run `npm run seed -- seeds/` to load the example PT/EN sets, or point it at your own file."
+  );
+}
 
 const app = express();
 app.use(express.json());
@@ -201,6 +206,15 @@ wss.on("connection", (ws, req) => {
     if (msg.type === "start") {
       if (user.id !== room.hostUserId) return;
       if (room.status !== "waiting") return;
+      if (!room.text) {
+        ws.send(
+          JSON.stringify({
+            type: "error",
+            message: "Nenhum texto de corrida cadastrado. Rode `npm run seed -- seeds/` para carregar os textos de exemplo.",
+          })
+        );
+        return;
+      }
 
       rooms.startCountdown(
         room,
