@@ -8,6 +8,7 @@ import { createDb, defaultDbPath } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager, type RoomState } from "./rooms.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
+import { mountAdmin, createAdminAuthMiddleware } from "./admin.js";
 
 const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
 
@@ -96,6 +97,15 @@ for (const prefix of ["", ...SUPPORTED_LANGS.map((l) => `/${l}`)]) {
   app.get(`${prefix}/mirror/:code`, (_req, res) => sendPage(res, "mirror.html"));
   app.get(`${prefix}/profile/:username`, (_req, res) => sendPage(res, "profile.html"));
 }
+
+// Must run before the general static mount below: public/admin/ lives inside
+// publicDir, so without this gate the static middleware would serve those
+// HTML/JS/CSS files to anyone before mountAdmin()'s own auth-gated /admin
+// mount (registered later, once RoomManager exists) ever gets a chance to.
+// When ADMIN_USERNAME/PASSWORD aren't set, block /admin outright (404) rather
+// than falling through to the static middleware unauthenticated.
+const adminAuth = createAdminAuthMiddleware();
+app.use("/admin", adminAuth ?? ((_req, res) => res.status(404).end()));
 
 app.use(
   express.static(publicDir, {
@@ -393,6 +403,9 @@ wss.on("connection", (ws: WebSocket, req) => {
     if (room.participants.size === 0) rooms.destroyRoom(room.id);
   });
 });
+
+// Enabled only if ADMIN_USERNAME/ADMIN_PASSWORD are both set — see admin.ts.
+mountAdmin(app, db, rooms, (room) => broadcast(room, { type: "finish", room: rooms.publicState(room) }));
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

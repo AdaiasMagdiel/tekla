@@ -130,6 +130,14 @@ export class RoomManager {
     return this.rooms.get(id) ?? null;
   }
 
+  // Snapshot of every room currently live in memory — used by the admin
+  // dashboard, which has no other way to see in-flight rooms (they only get
+  // a row in the `rooms` table, without participant/spectator detail, once
+  // finishRoom() persists their final status).
+  listRooms(): RoomState[] {
+    return [...this.rooms.values()];
+  }
+
   addParticipant(room: RoomState, user: UserRow): Participant {
     const existing = room.participants.get(user.id);
     if (existing) return existing;

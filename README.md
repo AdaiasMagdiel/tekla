@@ -86,6 +86,18 @@ Currently supported: `pt`, `en`. To add another language:
 
 Full walkthrough with an example: [CONTRIBUTING.md](CONTRIBUTING.md#translating-tekla).
 
+## Admin panel
+
+An admin panel is available at `/admin` — dashboard with stats/charts, and full CRUD over users, rooms (live + history, with a "close room" action), rankings/results, and race texts.
+
+It's **disabled by default**. Set both `ADMIN_USERNAME` and `ADMIN_PASSWORD` env vars to enable it; without both, `/admin` and `/api/admin/*` don't exist (404), not even an exposed login prompt:
+
+```sh
+ADMIN_USERNAME=admin ADMIN_PASSWORD=a-strong-password npm start
+```
+
+Auth is HTTP Basic (browser-native login prompt), checked with a timing-safe comparison. There's no session or cookie — the browser resends the credentials on every request.
+
 ## Project structure
 
 ```
