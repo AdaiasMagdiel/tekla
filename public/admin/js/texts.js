@@ -41,7 +41,7 @@ function openEditor(text) {
     </div>
   `;
   detailModal.classList.add("show");
-  lucide.createIcons();
+  safeCreateIcons();
 
   document.getElementById("saveBtn").addEventListener("click", async () => {
     const content = document.getElementById("editContent").value.trim();
@@ -104,7 +104,7 @@ async function load() {
     });
     html += "</tbody></table>";
     tableWrap.innerHTML = html;
-    lucide.createIcons();
+    safeCreateIcons();
 
     const rowsById = new Map(data.rows.map((t) => [String(t.id), t]));
     tableWrap.querySelectorAll("tr[data-id]").forEach((tr) => {

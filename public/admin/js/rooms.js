@@ -65,7 +65,7 @@ async function loadLive() {
           </div>`;
       })
       .join("");
-    lucide.createIcons();
+    safeCreateIcons();
     liveWrap.querySelectorAll("button[data-code]").forEach((btn) => {
       btn.addEventListener("click", () => closeRoom(btn.dataset.code));
     });

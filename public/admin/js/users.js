@@ -59,7 +59,7 @@ async function openDetail(id) {
       </div>
     `;
     detailModal.classList.add("show");
-    lucide.createIcons();
+    safeCreateIcons();
 
     document.getElementById("saveBtn").addEventListener("click", async () => {
       const displayName = document.getElementById("editName").value.trim();
@@ -118,7 +118,7 @@ async function load() {
     });
     html += "</tbody></table>";
     tableWrap.innerHTML = html;
-    lucide.createIcons();
+    safeCreateIcons();
 
     tableWrap.querySelectorAll("tr[data-id]").forEach((tr) => {
       tr.addEventListener("click", (e) => {

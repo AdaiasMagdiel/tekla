@@ -53,7 +53,8 @@
       <div id="resultsArea" style="display:none; margin-top: 20px;">
         <h2><i data-lucide="flag" class="icon"></i><span data-i18n="room.resultsHeading">Resultado da corrida</span></h2>
         <ul class="results-list" id="resultsList"></ul>
-        <button class="btn btn-secondary btn-block" onclick="window.location.reload()" data-i18n="room.resultsBackButton">Ver sala novamente</button>
+        <button class="btn btn-primary btn-block" id="restartBtn" data-i18n="room.restartButton">Nova corrida</button>
+        <div class="room-code-display" id="waitingRestartMsg" style="display:none; text-align:center; margin-top:10px;" data-i18n="room.waitingRestart">Aguardando o dono da sala iniciar uma nova corrida…</div>
       </div>
     </div>
   </div>

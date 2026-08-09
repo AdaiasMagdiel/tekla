@@ -72,7 +72,7 @@ async function loadResults() {
     });
     html += "</tbody></table>";
     resultsWrap.innerHTML = html;
-    lucide.createIcons();
+    safeCreateIcons();
     resultsWrap.querySelectorAll("button[data-id]").forEach((btn) => {
       btn.addEventListener("click", () => deleteResult(btn.dataset.id));
     });
