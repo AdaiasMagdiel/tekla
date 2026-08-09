@@ -1,12 +1,9 @@
 const { t, SUPPORTED_LANGS } = window.i18n;
 
-// Prefers the pretty /room/CODE path, falling back to the old ?code=
-// query string so previously shared/bookmarked links keep working.
 function codeFromUrl(pageSegment) {
   const segments = window.location.pathname.split("/").filter(Boolean);
   const idx = segments.indexOf(pageSegment);
-  if (idx !== -1 && segments[idx + 1]) return segments[idx + 1].toUpperCase();
-  return (new URLSearchParams(window.location.search).get("code") || "").toUpperCase();
+  return idx !== -1 && segments[idx + 1] ? segments[idx + 1].toUpperCase() : "";
 }
 
 function langPrefix() {
