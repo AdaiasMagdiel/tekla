@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ranking — Admin Tekla</title>
+  <meta name="robots" content="noindex" />
+  <script src="/js/theme-init.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/admin/css/admin.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/admin/index.html"><i data-lucide="shield" class="icon icon-lg flag"></i><span class="brand-text">Te<span class="brand-hi">kla</span> admin</span></a>
+      <nav>
+        <a href="/" target="_blank"><i data-lucide="external-link" class="icon"></i>Ver site</a>
+        <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
+      </nav>
+    </header>
+
+    <nav class="admin-nav">
+      <a href="/admin/index.html"><i data-lucide="layout-dashboard" class="icon"></i>Dashboard</a>
+      <a href="/admin/users.html"><i data-lucide="users" class="icon"></i>Usuários</a>
+      <a href="/admin/rooms.html"><i data-lucide="radio" class="icon"></i>Salas</a>
+      <a href="/admin/rankings.html"><i data-lucide="trophy" class="icon"></i>Ranking</a>
+      <a href="/admin/texts.html"><i data-lucide="file-text" class="icon"></i>Textos</a>
+    </nav>
+
+    <h2><i data-lucide="trophy" class="icon"></i>Ranking geral</h2>
+    <div id="rankingWrap"></div>
+
+    <h2 style="margin-top:32px;"><i data-lucide="list" class="icon"></i>Corridas registradas</h2>
+    <div id="resultsWrap"></div>
+    <div class="pagination" id="pagination"></div>
+
+    <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="/js/theme-toggle.js"></script>
+  <script src="/admin/js/shared.js"></script>
+  <script src="/admin/js/rankings.js"></script>
+  <script>lucide.createIcons();</script>
+</body>
+</html>
