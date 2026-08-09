@@ -7,6 +7,7 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "seed": "tsx scripts/seed-texts.ts",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
