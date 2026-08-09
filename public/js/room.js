@@ -252,6 +252,20 @@ function deleteOneChar(el) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+// Typing/deleting only ever happens at the end of what's typed so far — a
+// stray click, arrow key, or mobile tap-to-position can't insert or select
+// in the middle of already-typed text. Without this, an accidental mid-text
+// edit is invisible in the plain <input> (no per-character coloring there)
+// and silently shifts every character after it out of alignment with the
+// target text, with no obvious sign of where it happened.
+document.addEventListener("selectionchange", () => {
+  if (document.activeElement !== typingInput) return;
+  const end = typingInput.value.length;
+  if (typingInput.selectionStart !== end || typingInput.selectionEnd !== end) {
+    typingInput.setSelectionRange(end, end);
+  }
+});
+
 typingInput.addEventListener("keydown", (e) => {
   if (e.key === "Backspace" && (e.ctrlKey || e.metaKey || e.altKey)) {
     e.preventDefault();
