@@ -316,6 +316,14 @@ wss.on("connection", (ws: WebSocket, req) => {
       return;
     }
 
+    if (msg.type === "restart") {
+      if (user.id !== room.hostUserId) return;
+      if (room.status !== "finished") return;
+      rooms.resetRoom(room);
+      sendState(room);
+      return;
+    }
+
     if (msg.type === "start") {
       if (user.id !== room.hostUserId) return;
       if (room.status !== "waiting") return;

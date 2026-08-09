@@ -59,6 +59,11 @@ function connect(code) {
     } else if (msg.type === "state") {
       mirrorStatus.textContent = statusLabel(msg.room.status);
       render(msg.room);
+      // Connecting (or reconnecting) after the race already ended only ever
+      // gets this "state" message, never the one-shot "finish" event.
+      if (msg.room.status === "finished" && mirrorResults.style.display !== "block") {
+        showResults(msg.room);
+      }
     } else if (msg.type === "countdown") {
       showCountdown(msg.n);
     } else if (msg.type === "go") {
@@ -93,6 +98,14 @@ function statusLabel(status) {
 }
 
 function render(room) {
+  // A host restart takes the room back to "waiting" with a new text, but
+  // this client only ever gets a "state" message for that (no "go") — reset
+  // the race-local flags here or the mirror keeps showing the old race.
+  if (room.status === "waiting" && raceStarted) {
+    raceStarted = false;
+    mirrorResults.style.display = "none";
+  }
+
   if (room.text && !raceStarted) {
     mirrorTextPanel.textContent = room.text;
     mirrorTextPanel.classList.add("blurred");

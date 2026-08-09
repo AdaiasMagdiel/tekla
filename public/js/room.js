@@ -36,6 +36,8 @@ const countdownOverlay = document.getElementById("countdownOverlay");
 const countdownNum = document.getElementById("countdownNum");
 const resultsArea = document.getElementById("resultsArea");
 const resultsList = document.getElementById("resultsList");
+const restartBtn = document.getElementById("restartBtn");
+const waitingRestartMsg = document.getElementById("waitingRestartMsg");
 const copyHint = document.getElementById("copyHint");
 const copyHintText = document.getElementById("copyHintText");
 
@@ -46,6 +48,7 @@ let correctKeystrokes = 0;
 let finished = false;
 let latestState = null;
 let raceStarted = false;
+let resultsShown = false;
 let statsTicker = null;
 
 copyHint.addEventListener("click", () => {
@@ -80,7 +83,6 @@ ws.addEventListener("message", (ev) => {
   } else if (msg.type === "finish") {
     latestState = msg.room;
     renderState(msg.room);
-    showResults(msg.room);
   }
 });
 
@@ -95,19 +97,57 @@ startBtn.addEventListener("click", () => {
   ws.send(JSON.stringify({ type: "start" }));
 });
 
+restartBtn.addEventListener("click", () => {
+  ws.send(JSON.stringify({ type: "restart" }));
+});
+
+// Puts the typing UI back to its pre-race shape — used both on first load
+// (when reconnecting mid-lobby) and after the host restarts a finished room,
+// since the server sends a fresh "waiting" state instead of a page reload.
+function resetClientRaceState() {
+  raceStarted = false;
+  finished = false;
+  resultsShown = false;
+  targetText = null;
+  startedAt = null;
+  keystrokes = 0;
+  correctKeystrokes = 0;
+  clearInterval(statsTicker);
+  raceArea.style.display = "none";
+  resultsArea.style.display = "none";
+  textPanel.style.display = "none";
+  typingInput.value = "";
+  typingInput.dataset.prevLen = 0;
+  typingInput.disabled = true;
+  typingInput.placeholder = t("room.typingPlaceholderIdle");
+  statWpm.textContent = "0";
+  statAcc.textContent = "100%";
+  statProgress.textContent = "0%";
+}
+
 function renderState(room) {
   const isHost = room.hostUserId === user.id;
 
   if (room.status === "waiting") {
+    // A restart (or a reconnect that missed it) brings the room back to
+    // "waiting" while the client is still showing the previous race/results.
+    if (raceStarted || finished || resultsShown) resetClientRaceState();
     startBtn.style.display = isHost ? "inline-flex" : "none";
     waitingHostMsg.style.display = isHost ? "none" : "block";
     if (!isHost) waitingHostMsg.textContent = t("room.waitingHost");
+  } else if (room.status === "finished") {
+    startBtn.style.display = "none";
+    waitingHostMsg.style.display = "none";
+    // Reconnecting (or reloading) after the race already ended only ever
+    // gets a "state" message, never the one-shot "finish" event — render
+    // the results here too or the page is stuck showing nothing.
+    if (!resultsShown) showResults(room);
   } else {
     startBtn.style.display = "none";
     waitingHostMsg.style.display = "none";
   }
 
-  if (room.text && !raceStarted) {
+  if ((room.status === "waiting" || room.status === "countdown") && room.text && !raceStarted) {
     targetText = room.text;
     textPanel.style.display = "block";
     textPanel.classList.add("blurred");
@@ -338,10 +378,15 @@ function updateStats(typed) {
 }
 
 function showResults(room) {
+  resultsShown = true;
   clearInterval(statsTicker);
   raceArea.style.display = "none";
   resultsArea.style.display = "block";
   resultsList.innerHTML = "";
+
+  const isHost = room.hostUserId === user.id;
+  restartBtn.style.display = isHost ? "inline-flex" : "none";
+  waitingRestartMsg.style.display = isHost ? "none" : "block";
 
   const finishers = room.participants
     .filter((p) => p.finished)

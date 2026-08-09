@@ -40,6 +40,7 @@ export interface RoomState {
   hostUserId: string;
   status: RoomStatus;
   text: RaceText | undefined;
+  lang: string | null;
   participants: Map<string, Participant>;
   spectators: Set<WebSocket>;
   createdAt: number;
@@ -109,6 +110,7 @@ export class RoomManager {
       status: "waiting",
       // Picked up front so the (blurred) text can be shown while everyone waits.
       text: pickRandomText(this.db, lang),
+      lang: lang ?? null,
       participants: new Map(),
       spectators: new Set(), // read-only "mirror" viewers (big screens)
       createdAt: now,
@@ -265,6 +267,40 @@ export class RoomManager {
     this.db
       .prepare("UPDATE rooms SET status='finished', finished_at=? WHERE id=?")
       .run(Date.now(), room.id);
+  }
+
+  // Brings a finished room back to the lobby with a fresh text, so the host
+  // can start another race in the same room instead of everyone re-joining
+  // with a new code. Past results already live in race_results, untouched.
+  resetRoom(room: RoomState): void {
+    if (room.status !== "finished") return;
+    if (room.countdownTimer) {
+      clearInterval(room.countdownTimer);
+      room.countdownTimer = null;
+    }
+    if (room.graceTimer) {
+      clearTimeout(room.graceTimer);
+      room.graceTimer = null;
+    }
+    this.stopRaceTicker(room);
+
+    room.status = "waiting";
+    room.startedAt = null;
+    room.text = pickRandomText(this.db, room.lang);
+
+    for (const p of room.participants.values()) {
+      p.typed = "";
+      p.correctLen = 0;
+      p.keystrokes = 0;
+      p.correctKeystrokes = 0;
+      p.finished = false;
+      p.finishTimeMs = null;
+      p.position = null;
+    }
+
+    this.db
+      .prepare("UPDATE rooms SET status='waiting', text_id=NULL, started_at=NULL, finished_at=NULL WHERE id=?")
+      .run(room.id);
   }
 
   destroyRoom(roomId: string): void {
