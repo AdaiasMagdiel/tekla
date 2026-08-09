@@ -6,10 +6,36 @@ import path from "path";
 import { createDb, defaultDbPath } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager, type RoomState } from "./rooms.js";
+import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
 
 const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
 
-const textCount = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
+let textCount = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
+
+// Opt-in only (unset by default, so local `npm start` behaves exactly as
+// before): if AUTO_SEED_DIR is set and the database is empty, load whatever
+// .json/.txt files are in that directory before serving traffic. Meant for
+// container deployments that want a working app on first boot without a
+// separate manual step — the CLI (`npm run seed`) still works the same way
+// afterwards to load different texts or add more.
+if (textCount === 0 && process.env.AUTO_SEED_DIR) {
+  try {
+    const files = collectSeedFiles([process.env.AUTO_SEED_DIR]);
+    const rows = files.flatMap((file) =>
+      parseSeedFile(file, null).filter((t) => t.content && t.content.trim())
+    );
+    if (rows.length > 0) {
+      const result = importSeedRows(db, rows);
+      console.log(
+        `Auto-seeded ${result.imported} race text(s) from ${process.env.AUTO_SEED_DIR} (database was empty).`
+      );
+      textCount = result.total;
+    }
+  } catch (err) {
+    console.error(`Auto-seed from ${process.env.AUTO_SEED_DIR} failed:`, (err as Error).message);
+  }
+}
+
 if (textCount === 0) {
   console.warn(
     "No race texts in the database yet. Run `npm run seed -- seeds/` to load the example PT/EN sets, or point it at your own file."
