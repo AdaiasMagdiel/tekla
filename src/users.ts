@@ -19,7 +19,7 @@ export function getUserById(db: Database.Database, id: string): UserRow | undefi
   return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
 }
 
-const USERNAME_RE = /^[a-zA-Z0-9_]{3,16}$/;
+const USERNAME_RE = /^[a-zA-Z0-9_.]{3,16}$/;
 
 export function isValidUsername(username: unknown): username is string {
   return typeof username === "string" && USERNAME_RE.test(username);

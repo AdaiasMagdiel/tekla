@@ -20,7 +20,7 @@ fetch("/api/leaderboard")
     rows.forEach((r, i) => {
       html += `<tr>
         <td>${i + 1}</td>
-        <td><a href="/profile.html?u=${encodeURIComponent(r.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(r.displayName)} <span style="color:var(--text-dim)">@${escapeHtml(r.username)}</span></a></td>
+        <td><a href="/profile/${encodeURIComponent(r.username)}" style="color:inherit; text-decoration:none;">${escapeHtml(r.displayName)} <span style="color:var(--text-dim)">@${escapeHtml(r.username)}</span></a></td>
         <td>${r.bestWpm}</td>
         <td>${r.avgAccuracy}%</td>
         <td>${r.races}</td>

@@ -17,14 +17,14 @@
     "heading": "Corrida de digitação em tempo real",
     "subtitle": "Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.",
     "usernameLabel": "Nome de usuário",
-    "usernamePlaceholder": "ex: adaias_m",
+    "usernamePlaceholder": "ex: beremiz.samir",
     "displayNameLabel": "Seu nome",
-    "displayNamePlaceholder": "ex: Adaias",
+    "displayNamePlaceholder": "ex: Adaías Magdiel",
     "createRoomHeading": "Criar sala",
     "createRoomButton": "Criar sala nova",
     "joinRoomHeading": "Entrar com código",
     "roomCodePlaceholder": "ex: AB3D9K",
-    "joinRoomButton": "Entrar na sala"
+    "joinRoomButton": "Entrar"
   },
   "room": {
     "title": "Sala — Tekla",
@@ -101,7 +101,7 @@
     "offline": "offline"
   },
   "errors": {
-    "invalid_username": "Username inválido. Use 3-16 caracteres: letras, números ou _.",
+    "invalid_username": "Username inválido. Use 3-16 caracteres: letras, números, _ ou ponto.",
     "missing_display_name": "Informe seu nome.",
     "invalid_user": "Usuário inválido.",
     "room_not_found": "Sala não encontrada.",

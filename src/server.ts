@@ -51,29 +51,33 @@ const publicDir = path.join(process.cwd(), "public");
 const app = express();
 app.use(express.json());
 
-// /pt and /en serve the exact same static pages as the unprefixed routes;
-// the language itself is resolved and applied client-side (see i18n.js).
-// This just makes sure the URL prefix a user typed actually resolves to a page.
-const PAGES = ["index.html", "room.html", "ranking.html", "profile.html", "mirror.html"];
-for (const lang of SUPPORTED_LANGS) {
-  app.get(`/${lang}`, (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
-  for (const page of PAGES) {
-    app.get(`/${lang}/${page}`, (_req, res) => res.sendFile(path.join(publicDir, page)));
-  }
-}
+// No .html in any URL the app generates. At the root (no language prefix)
+// this falls entirely out of express.static's `extensions` option below —
+// /ranking transparently resolves to public/ranking.html on disk, same for
+// /, /profile, /mirror. That option doesn't reach under /pt or /en though
+// (those aren't real files, just a virtual prefix), so those get the same
+// routes registered explicitly. /room, /mirror, and /profile also get a
+// dynamic :code/:username segment for pretty room/mirror/profile links.
+const PAGES: Record<string, string> = {
+  ranking: "ranking.html",
+  profile: "profile.html",
+  mirror: "mirror.html",
+};
 
-// Pretty URLs for the two pages that carry a room code: /room/CODE and
-// /mirror/CODE (instead of room.html?code=CODE) — same page, same client-side
-// code parsing, just read from the path instead of the query string. Works
-// with a language prefix too (/pt/room/CODE). /mirror (no code) also gets a
-// clean alias for its code-entry form.
 for (const prefix of ["", ...SUPPORTED_LANGS.map((l) => `/${l}`)]) {
-  app.get(`${prefix}/mirror`, (_req, res) => res.sendFile(path.join(publicDir, "mirror.html")));
+  if (prefix) {
+    app.get(prefix, (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
+    for (const [clean, file] of Object.entries(PAGES)) {
+      app.get(`${prefix}/${clean}`, (_req, res) => res.sendFile(path.join(publicDir, file)));
+      app.get(`${prefix}/${file}`, (_req, res) => res.sendFile(path.join(publicDir, file)));
+    }
+  }
   app.get(`${prefix}/room/:code`, (_req, res) => res.sendFile(path.join(publicDir, "room.html")));
   app.get(`${prefix}/mirror/:code`, (_req, res) => res.sendFile(path.join(publicDir, "mirror.html")));
+  app.get(`${prefix}/profile/:username`, (_req, res) => res.sendFile(path.join(publicDir, "profile.html")));
 }
 
-app.use(express.static(publicDir));
+app.use(express.static(publicDir, { extensions: ["html"] }));
 
 const rooms = new RoomManager(db);
 
