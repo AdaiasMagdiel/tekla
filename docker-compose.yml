@@ -1,0 +1,11 @@
+services:
+  tekla:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - tekla_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  tekla_data:
