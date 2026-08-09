@@ -1,4 +1,9 @@
-const { t, lang } = window.i18n;
+const { t, lang, SUPPORTED_LANGS } = window.i18n;
+
+function langPrefix() {
+  const seg = window.location.pathname.split("/")[1];
+  return SUPPORTED_LANGS.includes(seg) ? `/${seg}` : "";
+}
 
 const usernameEl = document.getElementById("username");
 const displayNameEl = document.getElementById("displayName");
@@ -67,7 +72,7 @@ createBtn.addEventListener("click", async () => {
   const data = await res.json();
   createBtn.disabled = false;
   if (!res.ok) return showError(data.error ? t(`errors.${data.error}`) : t("errors.create_room_failed"));
-  window.location.href = `/room.html?code=${data.code}`;
+  window.location.href = `${langPrefix()}/room/${data.code}`;
 });
 
 joinBtn.addEventListener("click", async () => {
@@ -90,7 +95,7 @@ joinBtn.addEventListener("click", async () => {
   const data = await res.json();
   joinBtn.disabled = false;
   if (!res.ok) return showError(data.error ? t(`errors.${data.error}`) : t("errors.join_room_failed"));
-  window.location.href = `/room.html?code=${code}`;
+  window.location.href = `${langPrefix()}/room/${code}`;
 });
 
 roomCodeEl.addEventListener("keydown", (e) => {

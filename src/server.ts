@@ -35,6 +35,17 @@ for (const lang of SUPPORTED_LANGS) {
   }
 }
 
+// Pretty URLs for the two pages that carry a room code: /room/CODE and
+// /mirror/CODE (instead of room.html?code=CODE) — same page, same client-side
+// code parsing, just read from the path instead of the query string. Works
+// with a language prefix too (/pt/room/CODE). /mirror (no code) also gets a
+// clean alias for its code-entry form.
+for (const prefix of ["", ...SUPPORTED_LANGS.map((l) => `/${l}`)]) {
+  app.get(`${prefix}/mirror`, (_req, res) => res.sendFile(path.join(publicDir, "mirror.html")));
+  app.get(`${prefix}/room/:code`, (_req, res) => res.sendFile(path.join(publicDir, "room.html")));
+  app.get(`${prefix}/mirror/:code`, (_req, res) => res.sendFile(path.join(publicDir, "mirror.html")));
+}
+
 app.use(express.static(publicDir));
 
 const rooms = new RoomManager(db);

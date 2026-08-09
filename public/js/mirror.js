@@ -1,7 +1,20 @@
-const { t } = window.i18n;
+const { t, SUPPORTED_LANGS } = window.i18n;
 
-const params = new URLSearchParams(window.location.search);
-let roomCode = (params.get("code") || "").toUpperCase();
+// Prefers the pretty /mirror/CODE path, falling back to the old ?code=
+// query string so previously shared/bookmarked links keep working.
+function codeFromUrl() {
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  const idx = segments.indexOf("mirror");
+  if (idx !== -1 && segments[idx + 1]) return segments[idx + 1].toUpperCase();
+  return (new URLSearchParams(window.location.search).get("code") || "").toUpperCase();
+}
+
+function langPrefix() {
+  const seg = window.location.pathname.split("/")[1];
+  return SUPPORTED_LANGS.includes(seg) ? `/${seg}` : "";
+}
+
+let roomCode = codeFromUrl();
 
 const mirrorStatus = document.getElementById("mirrorStatus");
 const roomCodeLabel = document.getElementById("roomCodeLabel");
@@ -45,7 +58,7 @@ function connect(code) {
       roomCodeLabel.style.display = "none";
       mirrorStatus.style.display = "none";
       showError(t(`errors.${msg.error}`));
-      history.replaceState(null, "", "/mirror.html");
+      history.replaceState(null, "", `${langPrefix()}/mirror`);
     } else if (msg.type === "state") {
       mirrorStatus.textContent = statusLabel(msg.room.status);
       render(msg.room);
@@ -172,7 +185,7 @@ function escapeHtml(str) {
 codeSubmit.addEventListener("click", () => {
   const code = codeInput.value.trim().toUpperCase();
   if (code.length < 4) return showError(t("errors.invalid_room_code"));
-  history.replaceState(null, "", `/mirror.html?code=${code}`);
+  history.replaceState(null, "", `${langPrefix()}/mirror/${code}`);
   connect(code);
 });
 codeInput.addEventListener("keydown", (e) => {

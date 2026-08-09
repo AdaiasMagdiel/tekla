@@ -12,7 +12,7 @@ Built over a weekend for a typing competition we're organizing.
 - The room host starts a 5-second countdown (red → yellow → green); the text unblurs and the input unlocks for everyone at once.
 - Cars race across the track based on typing progress — but progress only advances through the **longest correct prefix** you've typed. Type a wrong word and race ahead without fixing it, and your car barely moves; you have to backspace and correct it to keep going.
 - Live WPM and accuracy update in real time for every racer, even during pauses.
-- A **mirror mode** (`/mirror.html?code=...`) gives you a read-only, big-screen-friendly view of the whole race — ideal for projecting on a TV during a live event.
+- A **mirror mode** (`/mirror/CODE`) gives you a read-only, big-screen-friendly view of the whole race — ideal for projecting on a TV during a live event.
 - Results and a global leaderboard (best WPM, accuracy, wins) are saved per user, with a per-user profile page showing race history.
 
 ## Stack

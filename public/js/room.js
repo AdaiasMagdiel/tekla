@@ -1,7 +1,20 @@
-const { t } = window.i18n;
+const { t, SUPPORTED_LANGS } = window.i18n;
 
-const params = new URLSearchParams(window.location.search);
-const roomCode = (params.get("code") || "").toUpperCase();
+// Prefers the pretty /room/CODE path, falling back to the old ?code=
+// query string so previously shared/bookmarked links keep working.
+function codeFromUrl(pageSegment) {
+  const segments = window.location.pathname.split("/").filter(Boolean);
+  const idx = segments.indexOf(pageSegment);
+  if (idx !== -1 && segments[idx + 1]) return segments[idx + 1].toUpperCase();
+  return (new URLSearchParams(window.location.search).get("code") || "").toUpperCase();
+}
+
+function langPrefix() {
+  const seg = window.location.pathname.split("/")[1];
+  return SUPPORTED_LANGS.includes(seg) ? `/${seg}` : "";
+}
+
+const roomCode = codeFromUrl("room");
 const user = JSON.parse(localStorage.getItem("tekla_user") || "null");
 
 if (!roomCode || !user) {
@@ -9,7 +22,7 @@ if (!roomCode || !user) {
 }
 
 document.getElementById("roomCodeLabel").textContent = roomCode;
-document.getElementById("mirrorLink").href = `/mirror.html?code=${roomCode}`;
+document.getElementById("mirrorLink").href = `${langPrefix()}/mirror/${roomCode}`;
 
 const track = document.getElementById("track");
 const startBtn = document.getElementById("startBtn");
@@ -39,7 +52,7 @@ let raceStarted = false;
 let statsTicker = null;
 
 copyHint.addEventListener("click", () => {
-  const url = `${window.location.origin}/room.html?code=${roomCode}`;
+  const url = `${window.location.origin}${langPrefix()}/room/${roomCode}`;
   navigator.clipboard.writeText(url).then(() => {
     copyHintText.textContent = t("room.copyHintCopied");
     setTimeout(() => (copyHintText.textContent = t("room.copyHint")), 1500);
