@@ -1,5 +1,8 @@
 import { customAlphabet } from "nanoid";
+import type Database from "better-sqlite3";
+import type { WebSocket } from "ws";
 import { pickRandomText } from "./texts.js";
+import type { RaceText, UserRow } from "./types.js";
 
 // Avoid ambiguous chars (0/O, 1/I/L) so codes are short and easy to read/type.
 const genCode = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
@@ -15,15 +18,77 @@ const CAR_COLORS = [
   "#ef476f",
 ];
 
+export type RoomStatus = "waiting" | "countdown" | "racing" | "finished";
+
+export interface Participant {
+  user: UserRow;
+  ws: WebSocket | null;
+  typed: string;
+  correctLen: number;
+  keystrokes: number;
+  correctKeystrokes: number;
+  finished: boolean;
+  finishTimeMs: number | null;
+  position: number | null;
+  carColor: string;
+  connected: boolean;
+}
+
+export interface RoomState {
+  id: string;
+  code: string;
+  hostUserId: string;
+  status: RoomStatus;
+  text: RaceText | undefined;
+  participants: Map<string, Participant>;
+  spectators: Set<WebSocket>;
+  createdAt: number;
+  startedAt: number | null;
+  countdownTimer: NodeJS.Timeout | null;
+  graceTimer: NodeJS.Timeout | null;
+  tickTimer: NodeJS.Timeout | null;
+}
+
+export interface LiveStats {
+  wpm: number;
+  accuracy: number;
+  elapsedMs: number;
+}
+
+export interface PublicParticipant {
+  userId: string;
+  username: string;
+  displayName: string;
+  carColor: string;
+  connected: boolean;
+  progress: number;
+  finished: boolean;
+  finishTimeMs: number | null;
+  position: number | null;
+  wpm: number;
+  accuracy: number;
+  elapsedMs: number;
+}
+
+export interface PublicRoomState {
+  code: string;
+  status: RoomStatus;
+  hostUserId: string;
+  text: string | null;
+  participants: PublicParticipant[];
+}
+
 export class RoomManager {
-  constructor(db) {
+  private db: Database.Database;
+  private rooms = new Map<string, RoomState>();
+  private codeToId = new Map<string, string>();
+
+  constructor(db: Database.Database) {
     this.db = db;
-    this.rooms = new Map(); // roomId -> state
-    this.codeToId = new Map(); // code -> roomId
   }
 
-  createRoom(hostUser, lang) {
-    let code;
+  createRoom(hostUser: UserRow, lang?: string | null): RoomState {
+    let code: string;
     do {
       code = genCode();
     } while (this.codeToId.has(code));
@@ -37,7 +102,7 @@ export class RoomManager {
       )
       .run(id, code, hostUser.id, now);
 
-    const state = {
+    const state: RoomState = {
       id,
       code,
       hostUserId: hostUser.id,
@@ -59,16 +124,18 @@ export class RoomManager {
     return state;
   }
 
-  getByCode(code) {
+  getByCode(code: string): RoomState | null {
     const id = this.codeToId.get(code.toUpperCase());
     if (!id) return null;
-    return this.rooms.get(id);
+    return this.rooms.get(id) ?? null;
   }
 
-  addParticipant(room, user) {
-    if (room.participants.has(user.id)) return room.participants.get(user.id);
+  addParticipant(room: RoomState, user: UserRow): Participant {
+    const existing = room.participants.get(user.id);
+    if (existing) return existing;
+
     const colorIndex = room.participants.size % CAR_COLORS.length;
-    const p = {
+    const p: Participant = {
       user,
       ws: null,
       typed: "",
@@ -78,30 +145,30 @@ export class RoomManager {
       finished: false,
       finishTimeMs: null,
       position: null,
-      carColor: CAR_COLORS[colorIndex],
+      carColor: CAR_COLORS[colorIndex]!,
       connected: false,
     };
     room.participants.set(user.id, p);
     return p;
   }
 
-  removeParticipant(room, userId) {
+  removeParticipant(room: RoomState, userId: string): void {
     room.participants.delete(userId);
   }
 
-  addSpectator(room, ws) {
+  addSpectator(room: RoomState, ws: WebSocket): void {
     room.spectators.add(ws);
   }
 
-  removeSpectator(room, ws) {
+  removeSpectator(room: RoomState, ws: WebSocket): void {
     room.spectators.delete(ws);
   }
 
   // Computed fresh on every call so PPM/precisão/tempo keep moving in real
   // time even between keystrokes (elapsed time changes; correctLen doesn't).
-  liveStats(room, p) {
+  liveStats(room: RoomState, p: Participant): LiveStats {
     if (!room.text || !room.startedAt) return { wpm: 0, accuracy: 100, elapsedMs: 0 };
-    const elapsedMs = p.finished ? p.finishTimeMs : Date.now() - room.startedAt;
+    const elapsedMs = p.finished ? p.finishTimeMs! : Date.now() - room.startedAt;
     const minutes = elapsedMs / 60000;
     const wpm = minutes > 0 ? Math.round(p.correctLen / 5 / minutes) : 0;
     const accuracy =
@@ -109,7 +176,7 @@ export class RoomManager {
     return { wpm, accuracy, elapsedMs };
   }
 
-  publicState(room) {
+  publicState(room: RoomState): PublicRoomState {
     return {
       code: room.code,
       status: room.status,
@@ -135,7 +202,7 @@ export class RoomManager {
     };
   }
 
-  startCountdown(room, onTick, onGo) {
+  startCountdown(room: RoomState, onTick: (n: number) => void, onGo: (text: string) => void): void {
     if (room.status !== "waiting") return;
     room.status = "countdown";
     let n = 5;
@@ -145,41 +212,41 @@ export class RoomManager {
       if (n > 0) {
         onTick(n);
       } else {
-        clearInterval(room.countdownTimer);
+        clearInterval(room.countdownTimer!);
         room.countdownTimer = null;
         onTick(0); // final "Vai!" tick so the UI can clear the overlay
         room.status = "racing";
         room.startedAt = Date.now();
         this.db
-          .prepare(
-            "UPDATE rooms SET status='racing', started_at=?, text_id=? WHERE id=?"
-          )
-          .run(room.startedAt, room.text.id, room.id);
-        onGo(room.text.content);
+          .prepare("UPDATE rooms SET status='racing', started_at=?, text_id=? WHERE id=?")
+          .run(room.startedAt, room.text!.id, room.id);
+        onGo(room.text!.content);
       }
     }, 1000);
   }
 
-  startRaceTicker(room, onTick) {
+  startRaceTicker(room: RoomState, onTick: () => void): void {
     if (room.tickTimer) clearInterval(room.tickTimer);
     room.tickTimer = setInterval(onTick, 500);
   }
 
-  stopRaceTicker(room) {
+  stopRaceTicker(room: RoomState): void {
     if (room.tickTimer) {
       clearInterval(room.tickTimer);
       room.tickTimer = null;
     }
   }
 
-  computeProgress(target, typed) {
+  // Progress only advances through the longest CORRECT prefix typed so far —
+  // racing ahead of an uncorrected typo doesn't move the car.
+  computeProgress(target: string, typed: string): number {
     let i = 0;
     const max = Math.min(target.length, typed.length);
     while (i < max && typed[i] === target[i]) i++;
     return i;
   }
 
-  finishRoom(room) {
+  finishRoom(room: RoomState): void {
     if (room.status === "finished") return;
     if (room.graceTimer) {
       clearTimeout(room.graceTimer);
@@ -192,7 +259,7 @@ export class RoomManager {
       .run(Date.now(), room.id);
   }
 
-  destroyRoom(roomId) {
+  destroyRoom(roomId: string): void {
     const room = this.rooms.get(roomId);
     if (!room) return;
     if (room.countdownTimer) clearInterval(room.countdownTimer);

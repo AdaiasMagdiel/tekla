@@ -1,16 +1,17 @@
-import express from "express";
-import { WebSocketServer } from "ws";
+import express, { type Request, type Response } from "express";
+import { WebSocketServer, type WebSocket } from "ws";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import { db } from "./db.js";
+import { createDb, defaultDbPath } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
-import { RoomManager } from "./rooms.js";
+import { RoomManager, type RoomState } from "./rooms.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
 
-const textCount = db.prepare("SELECT COUNT(*) as c FROM texts").get().c;
+const textCount = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
 if (textCount === 0) {
   console.warn(
     "No race texts in the database yet. Run `npm run seed -- seeds/` to load the example PT/EN sets, or point it at your own file."
@@ -28,9 +29,9 @@ app.use(express.json());
 // This just makes sure the URL prefix a user typed actually resolves to a page.
 const PAGES = ["index.html", "room.html", "ranking.html", "profile.html", "mirror.html"];
 for (const lang of SUPPORTED_LANGS) {
-  app.get(`/${lang}`, (req, res) => res.sendFile(path.join(publicDir, "index.html")));
+  app.get(`/${lang}`, (_req, res) => res.sendFile(path.join(publicDir, "index.html")));
   for (const page of PAGES) {
-    app.get(`/${lang}/${page}`, (req, res) => res.sendFile(path.join(publicDir, page)));
+    app.get(`/${lang}/${page}`, (_req, res) => res.sendFile(path.join(publicDir, page)));
   }
 }
 
@@ -42,12 +43,12 @@ const rooms = new RoomManager(db);
 // Error responses use short codes (not localized strings) — the client maps
 // them to the active UI language via public/i18n/<lang>.json.
 
-app.post("/api/users", (req, res) => {
-  const { username, displayName } = req.body || {};
+app.post("/api/users", (req: Request, res: Response) => {
+  const { username, displayName } = (req.body || {}) as { username?: unknown; displayName?: unknown };
   if (!isValidUsername(username)) {
     return res.status(400).json({ error: "invalid_username" });
   }
-  const name = (displayName || "").trim().slice(0, 40);
+  const name = (typeof displayName === "string" ? displayName : "").trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: "missing_display_name" });
 
   const existing = getUserByUsername(db, username);
@@ -62,25 +63,25 @@ app.post("/api/users", (req, res) => {
   res.json({ id: user.id, username: user.username, displayName: user.display_name });
 });
 
-app.post("/api/rooms", (req, res) => {
-  const { userId, lang } = req.body || {};
-  const user = getUserById(db, userId);
+app.post("/api/rooms", (req: Request, res: Response) => {
+  const { userId, lang } = (req.body || {}) as { userId?: string; lang?: string };
+  const user = getUserById(db, userId ?? "");
   if (!user) return res.status(401).json({ error: "invalid_user" });
-  const room = rooms.createRoom(user, SUPPORTED_LANGS.includes(lang) ? lang : null);
+  const room = rooms.createRoom(user, SUPPORTED_LANGS.includes(lang ?? "") ? lang : null);
   res.json({ code: room.code });
 });
 
-app.get("/api/rooms/:code", (req, res) => {
-  const room = rooms.getByCode(req.params.code);
+app.get("/api/rooms/:code", (req: Request, res: Response) => {
+  const room = rooms.getByCode(String(req.params.code ?? ""));
   if (!room) return res.status(404).json({ error: "room_not_found" });
   res.json(rooms.publicState(room));
 });
 
-app.post("/api/rooms/:code/join", (req, res) => {
-  const { userId } = req.body || {};
-  const user = getUserById(db, userId);
+app.post("/api/rooms/:code/join", (req: Request, res: Response) => {
+  const { userId } = (req.body || {}) as { userId?: string };
+  const user = getUserById(db, userId ?? "");
   if (!user) return res.status(401).json({ error: "invalid_user" });
-  const room = rooms.getByCode(req.params.code);
+  const room = rooms.getByCode(String(req.params.code ?? ""));
   if (!room) return res.status(404).json({ error: "room_not_found" });
   if (room.status !== "waiting") {
     return res.status(409).json({ error: "race_already_started" });
@@ -89,7 +90,7 @@ app.post("/api/rooms/:code/join", (req, res) => {
   res.json(rooms.publicState(room));
 });
 
-app.get("/api/leaderboard", (req, res) => {
+app.get("/api/leaderboard", (_req: Request, res: Response) => {
   const rows = db
     .prepare(
       `SELECT u.username, u.display_name as displayName,
@@ -107,8 +108,8 @@ app.get("/api/leaderboard", (req, res) => {
   res.json(rows);
 });
 
-app.get("/api/users/:username/stats", (req, res) => {
-  const user = getUserByUsername(db, req.params.username);
+app.get("/api/users/:username/stats", (req: Request, res: Response) => {
+  const user = getUserByUsername(db, String(req.params.username ?? ""));
   if (!user) return res.status(404).json({ error: "user_not_found" });
 
   const summary = db
@@ -120,7 +121,13 @@ app.get("/api/users/:username/stats", (req, res) => {
               SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as wins
        FROM race_results WHERE user_id = ?`
     )
-    .get(user.id);
+    .get(user.id) as {
+    races: number;
+    bestWpm: number | null;
+    avgWpm: number | null;
+    avgAccuracy: number | null;
+    wins: number;
+  };
 
   const history = db
     .prepare(
@@ -153,7 +160,15 @@ app.get("/api/users/:username/stats", (req, res) => {
 const server = createServer(app);
 const wss = new WebSocketServer({ server, path: "/ws" });
 
-function broadcast(room, msg) {
+type ServerMessage =
+  | { type: "error"; error: string }
+  | { type: "state"; room: ReturnType<RoomManager["publicState"]> }
+  | { type: "countdown"; n: number }
+  | { type: "go"; text: string }
+  | { type: "progress"; room: ReturnType<RoomManager["publicState"]> }
+  | { type: "finish"; room: ReturnType<RoomManager["publicState"]> };
+
+function broadcast(room: RoomState, msg: ServerMessage): void {
   const data = JSON.stringify(msg);
   for (const p of room.participants.values()) {
     if (p.ws && p.ws.readyState === 1) p.ws.send(data);
@@ -163,11 +178,11 @@ function broadcast(room, msg) {
   }
 }
 
-function sendState(room) {
+function sendState(room: RoomState): void {
   broadcast(room, { type: "state", room: rooms.publicState(room) });
 }
 
-function maybeFinishRoom(room) {
+function maybeFinishRoom(room: RoomState): void {
   const all = [...room.participants.values()];
   const active = all.filter((p) => p.connected);
   if (active.length > 0 && active.every((p) => p.finished)) {
@@ -176,14 +191,14 @@ function maybeFinishRoom(room) {
   }
 }
 
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url, "http://localhost");
+wss.on("connection", (ws: WebSocket, req) => {
+  const url = new URL(req.url ?? "", "http://localhost");
   const code = (url.searchParams.get("room") || "").toUpperCase();
   const isSpectator = url.searchParams.get("spectator") === "1";
 
   const room = rooms.getByCode(code);
   if (!room) {
-    ws.send(JSON.stringify({ type: "error", error: "room_not_found" }));
+    ws.send(JSON.stringify({ type: "error", error: "room_not_found" } satisfies ServerMessage));
     ws.close();
     return;
   }
@@ -191,15 +206,15 @@ wss.on("connection", (ws, req) => {
   // Read-only "mirror" viewers (big screens): no user, no car, just state.
   if (isSpectator) {
     rooms.addSpectator(room, ws);
-    ws.send(JSON.stringify({ type: "state", room: rooms.publicState(room) }));
+    ws.send(JSON.stringify({ type: "state", room: rooms.publicState(room) } satisfies ServerMessage));
     ws.on("close", () => rooms.removeSpectator(room, ws));
     return;
   }
 
   const userId = url.searchParams.get("userId");
-  const user = getUserById(db, userId);
+  const user = getUserById(db, userId ?? "");
   if (!user) {
-    ws.send(JSON.stringify({ type: "error", error: "invalid_user" }));
+    ws.send(JSON.stringify({ type: "error", error: "invalid_user" } satisfies ServerMessage));
     ws.close();
     return;
   }
@@ -211,7 +226,7 @@ wss.on("connection", (ws, req) => {
   sendState(room);
 
   ws.on("message", (raw) => {
-    let msg;
+    let msg: any;
     try {
       msg = JSON.parse(raw.toString());
     } catch {
@@ -222,7 +237,7 @@ wss.on("connection", (ws, req) => {
       if (user.id !== room.hostUserId) return;
       if (room.status !== "waiting") return;
       if (!room.text) {
-        ws.send(JSON.stringify({ type: "error", error: "no_race_texts" }));
+        ws.send(JSON.stringify({ type: "error", error: "no_race_texts" } satisfies ServerMessage));
         return;
       }
 
@@ -247,7 +262,7 @@ wss.on("connection", (ws, req) => {
       const p = room.participants.get(user.id);
       if (!p || p.finished) return;
 
-      const target = room.text.content;
+      const target = room.text!.content;
       const value = String(msg.value ?? "").slice(0, target.length + 20);
       const prevLen = p.typed.length;
 
@@ -262,7 +277,7 @@ wss.on("connection", (ws, req) => {
 
       if (p.correctLen === target.length && !p.finished) {
         p.finished = true;
-        p.finishTimeMs = Date.now() - room.startedAt;
+        p.finishTimeMs = Date.now() - room.startedAt!;
         const finishedCount = [...room.participants.values()].filter((x) => x.finished).length;
         p.position = finishedCount;
 

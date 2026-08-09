@@ -2,14 +2,7 @@ import Database from "better-sqlite3";
 import { fileURLToPath } from "url";
 import path from "path";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, "..", "data", "tekla.sqlite");
-
-export const db = new Database(dbPath);
-db.pragma("journal_mode = WAL");
-db.pragma("foreign_keys = ON");
-
-db.exec(`
+const SCHEMA = `
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT UNIQUE NOT NULL,
@@ -47,4 +40,23 @@ CREATE TABLE IF NOT EXISTS race_results (
 
 CREATE INDEX IF NOT EXISTS idx_results_user ON race_results(user_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_code ON rooms(code);
-`);
+`;
+
+// Exposed so tests (and anyone embedding the app) can spin up an isolated
+// database — e.g. createDb(":memory:") — instead of always touching the
+// real data/tekla.sqlite file.
+export function createDb(dbPath: string): Database.Database {
+  const database = new Database(dbPath);
+  database.pragma("journal_mode = WAL");
+  database.pragma("foreign_keys = ON");
+  database.exec(SCHEMA);
+  return database;
+}
+
+// A path, not a connection — resolving this has no side effects, so
+// importing this module (e.g. just for createDb in tests) never touches
+// disk. Callers decide when/whether to actually open a database.
+export function defaultDbPath(): string {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  return path.join(__dirname, "..", "data", "tekla.sqlite");
+}

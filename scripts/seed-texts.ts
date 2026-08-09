@@ -2,20 +2,22 @@
 // Populates the `texts` table used to pick race paragraphs.
 //
 // Usage:
-//   node scripts/seed-texts.mjs <path...> [options]
+//   npm run seed -- <path...> [options]
+//   tsx scripts/seed-texts.ts <path...> [options]
 //
 // Each <path> can be a .json file, a .txt file, or a directory containing
 // either. Run with --help for the full format/options reference.
 
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, basename, extname, resolve } from "path";
-import { db } from "../src/db.js";
+import { createDb, defaultDbPath } from "../src/db.js";
+
+const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
 
 const HELP = `
 Seed race texts into the database.
 
 Usage:
-  node scripts/seed-texts.mjs <path...> [options]
   npm run seed -- <path...> [options]
 
 Arguments:
@@ -34,26 +36,39 @@ File formats:
   .txt    One race text per line. Blank lines are ignored.
 
 Examples:
-  node scripts/seed-texts.mjs seeds/                 # import every file in seeds/
-  node scripts/seed-texts.mjs seeds/pt.json --clear  # wipe existing texts, load PT only
-  node scripts/seed-texts.mjs my-texts.txt --lang es # force language "es"
+  npm run seed -- seeds/                 # import every file in seeds/
+  npm run seed -- seeds/pt.json --clear  # wipe existing texts, load PT only
+  npm run seed -- my-texts.txt --lang es # force language "es"
 `;
 
-function parseArgs(argv) {
-  const opts = { paths: [], lang: null, clear: false, dryRun: false, help: false };
+interface ParsedOptions {
+  paths: string[];
+  lang: string | null;
+  clear: boolean;
+  dryRun: boolean;
+  help: boolean;
+}
+
+interface SeedRow {
+  content: string;
+  lang: string;
+}
+
+function parseArgs(argv: string[]): ParsedOptions {
+  const opts: ParsedOptions = { paths: [], lang: null, clear: false, dryRun: false, help: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "-h" || arg === "--help") opts.help = true;
     else if (arg === "--clear") opts.clear = true;
     else if (arg === "--dry-run") opts.dryRun = true;
-    else if (arg === "--lang") opts.lang = argv[++i];
-    else opts.paths.push(arg);
+    else if (arg === "--lang") opts.lang = argv[++i] ?? null;
+    else if (arg !== undefined) opts.paths.push(arg);
   }
   return opts;
 }
 
-function collectFiles(paths) {
-  const files = [];
+function collectFiles(paths: string[]): string[] {
+  const files: string[] = [];
   for (const p of paths) {
     const full = resolve(p);
     const stat = statSync(full, { throwIfNoEntry: false });
@@ -74,17 +89,17 @@ function collectFiles(paths) {
   return files;
 }
 
-function inferLang(filePath) {
+function inferLang(filePath: string): string {
   return basename(filePath, extname(filePath)).toLowerCase();
 }
 
-function parseFile(filePath, forcedLang) {
+function parseFile(filePath: string, forcedLang: string | null): SeedRow[] {
   const ext = extname(filePath);
   const raw = readFileSync(filePath, "utf-8");
   const fallbackLang = forcedLang || inferLang(filePath);
 
   if (ext === ".json") {
-    const data = JSON.parse(raw);
+    const data = JSON.parse(raw) as Array<string | { content: string; lang?: string }>;
     return data.map((item) =>
       typeof item === "string"
         ? { content: item, lang: fallbackLang }
@@ -103,7 +118,7 @@ function parseFile(filePath, forcedLang) {
   throw new Error(`Unsupported file type: ${filePath}`);
 }
 
-function main() {
+function main(): void {
   const opts = parseArgs(process.argv.slice(2));
 
   if (opts.help || opts.paths.length === 0) {
@@ -117,19 +132,19 @@ function main() {
     process.exit(1);
   }
 
-  const texts = [];
+  const texts: SeedRow[] = [];
   for (const file of files) {
     try {
       const parsed = parseFile(file, opts.lang).filter((t) => t.content && t.content.trim());
       texts.push(...parsed);
       console.log(`Read ${parsed.length} text(s) from ${file}`);
     } catch (err) {
-      console.error(`Failed to parse ${file}: ${err.message}`);
+      console.error(`Failed to parse ${file}: ${(err as Error).message}`);
       process.exit(1);
     }
   }
 
-  const byLang = texts.reduce((acc, t) => {
+  const byLang = texts.reduce<Record<string, number>>((acc, t) => {
     acc[t.lang] = (acc[t.lang] || 0) + 1;
     return acc;
   }, {});
@@ -152,12 +167,12 @@ function main() {
   }
 
   const insert = db.prepare("INSERT INTO texts (content, lang) VALUES (?, ?)");
-  const insertAll = db.transaction((rows) => {
+  const insertAll = db.transaction((rows: SeedRow[]) => {
     for (const row of rows) insert.run(row.content, row.lang);
   });
   insertAll(texts);
 
-  const total = db.prepare("SELECT COUNT(*) as c FROM texts").get().c;
+  const total = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
   console.log(`\nImported ${texts.length} text(s) (${summary}). Total texts in database: ${total}.`);
 }
 

@@ -17,9 +17,12 @@ Built over a weekend for a typing competition we're organizing.
 
 ## Stack
 
-- **Backend:** Node.js, Express, `ws` (WebSocket), SQLite (`better-sqlite3`)
-- **Frontend:** vanilla HTML/CSS/JS, no build step
+- **Backend:** Node.js, Express, `ws` (WebSocket), SQLite (`better-sqlite3`) — written in **TypeScript**, run directly via [`tsx`](https://github.com/privatenumber/tsx) (no separate build/compile step)
+- **Frontend:** vanilla HTML/CSS/JS, no build step, no bundler
 - **Icons:** [Lucide](https://lucide.dev) via CDN
+- **Tests:** [Vitest](https://vitest.dev)
+
+The frontend is intentionally plain JS rather than TypeScript — it's a handful of small, boring scripts with zero build tooling today, and adding TS there would mean adding a bundler just to get a compile step. If that trade-off stops being worth it, converting is a reasonable future step (see [CONTRIBUTING.md](CONTRIBUTING.md)).
 
 ## Running locally
 
@@ -31,13 +34,21 @@ npm start
 
 The app runs on `http://localhost:3000` by default (override with the `PORT` env var). A SQLite database is created automatically at `data/tekla.sqlite` on first run — but it starts with **no race texts**, so a room can't start a race until you seed some.
 
+Other scripts:
+
+```bash
+npm run dev        # start with auto-restart on file changes
+npm run typecheck  # tsc --noEmit
+npm test           # run the test suite once
+npm run test:watch # re-run tests on file changes
+```
+
 ## Seeding race texts
 
 The repo doesn't ship any text baked into the code — you feed your own database with the `seed` script, in whatever language(s) you want.
 
 ```bash
-node scripts/seed-texts.mjs <path...> [options]
-# or: npm run seed -- <path...> [options]
+npm run seed -- <path...> [options]
 ```
 
 `<path>` can be a `.json` file, a `.txt` file, or a directory containing either — pass as many as you like. Options:
@@ -71,21 +82,26 @@ Currently supported: `pt`, `en`. To add another language:
 
 1. Add `seeds/<code>.json` (or `.txt`) with race texts and run `npm run seed -- seeds/<code>.json`.
 2. Add `public/i18n/<code>.json` with the same keys as `public/i18n/en.json`, translated.
-3. Add `<code>` to `SUPPORTED_LANGS` in `src/server.js` and `public/js/i18n.js`.
+3. Add `<code>` to `SUPPORTED_LANGS` in `src/server.ts` and `public/js/i18n.js`.
+
+Full walkthrough with an example: [CONTRIBUTING.md](CONTRIBUTING.md#translating-tekla).
 
 ## Project structure
 
 ```
 src/
-  server.js   REST API + WebSocket server, /pt and /en page routes
-  rooms.js    In-memory room state, race progress, live stats
-  db.js       SQLite schema
-  texts.js    Random (language-aware) text picker used when a race starts
-  users.js    User lookup/creation helpers
+  server.ts   REST API + WebSocket server, /pt and /en page routes
+  rooms.ts    In-memory room state, race progress, live stats
+  db.ts       SQLite schema + connection factory
+  texts.ts    Random (language-aware) text picker used when a race starts
+  users.ts    User lookup/creation helpers
+  types.ts    Shared type definitions
 scripts/
-  seed-texts.mjs  CLI to load race texts into the database
+  seed-texts.ts   CLI to load race texts into the database
 seeds/
   pt.json, en.json   Example race text sets
+tests/
+  *.test.ts   Vitest unit tests for src/
 public/
   index.html      Landing page (create/join room)
   room.html       Waiting room + race UI
@@ -95,6 +111,10 @@ public/
   i18n/           UI string dictionaries (pt.json, en.json)
   js/i18n.js      Language detection + translation, loaded first on every page
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) — covers translating the app, adding race texts, running tests, and the general dev workflow.
 
 ## License
 

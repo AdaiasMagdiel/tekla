@@ -2,12 +2,22 @@
   "name": "tekla",
   "version": "1.0.0",
   "description": "Real-time multiplayer typing race game with rooms, live WPM/accuracy tracking, a big-screen mirror view, and a global leaderboard.",
-  "main": "src/server.js",
+  "main": "src/server.ts",
   "scripts": {
-    "start": "node src/server.js",
-    "seed": "node scripts/seed-texts.mjs"
+    "start": "tsx src/server.ts",
+    "dev": "tsx watch src/server.ts",
+    "seed": "tsx scripts/seed-texts.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
-  "keywords": ["typing-game", "typing-race", "websocket", "sqlite", "express"],
+  "keywords": [
+    "typing-game",
+    "typing-race",
+    "websocket",
+    "sqlite",
+    "express"
+  ],
   "author": "Adaías Magdiel",
   "license": "AGPL-3.0-only",
   "type": "module",
@@ -16,5 +26,14 @@
     "express": "^5.2.1",
     "nanoid": "^6.0.1",
     "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.11",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
   }
 }
