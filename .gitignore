@@ -4,3 +4,7 @@ data/*.sqlite-*
 dist/
 *.log
 .claude/
+public/uploads/
+test-results/
+playwright-report/
+playwright/.cache/

@@ -24,7 +24,9 @@
     "createRoomButton": "Criar sala nova",
     "joinRoomHeading": "Entrar com código",
     "roomCodePlaceholder": "ex: AB3D9K",
-    "joinRoomButton": "Entrar"
+    "joinRoomButton": "Entrar",
+    "chooseCharacterHeading": "Escolha seu personagem",
+    "noCharacter": "Nenhum"
   },
   "room": {
     "title": "Sala — Tekla",

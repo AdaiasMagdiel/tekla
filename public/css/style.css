@@ -230,6 +230,34 @@ input[type="text"] {
 input[type="text"]:focus { border-color: var(--accent); }
 input[type="text"]::placeholder { color: var(--muted); }
 
+.character-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+.character-option {
+  width: 56px;
+  height: 56px;
+  border-radius: 10px;
+  border: 2px solid var(--border);
+  background: var(--bg-alt);
+  cursor: pointer;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s;
+}
+.character-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.character-option.selected { border-color: var(--accent); }
+.character-option.none-option { font-size: 1.4rem; color: var(--muted); }
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -368,6 +396,13 @@ code.room-code {
 
 .lane .car.finished { filter: drop-shadow(0 0 6px var(--good)); }
 
+.lane .car img {
+  display: block;
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+
 .lane .label {
   position: absolute;
   left: 8px;
@@ -385,6 +420,9 @@ code.room-code {
 }
 .lane .label .dot {
   width: 8px; height: 8px; border-radius: 50%;
+}
+.lane .label .avatar {
+  width: 16px; height: 16px; border-radius: 50%; object-fit: cover;
 }
 
 .badge-pill {

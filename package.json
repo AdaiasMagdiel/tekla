@@ -7,10 +7,12 @@
     "start": "tsx src/server.ts",
     "dev": "tsx watch src/server.ts",
     "seed": "tsx scripts/seed-texts.ts",
+    "migrate": "tsx scripts/migrate.ts",
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "playwright test"
   },
   "keywords": [
     "typing-game",
@@ -25,12 +27,16 @@
   "dependencies": {
     "better-sqlite3": "^13.0.3",
     "express": "^5.2.1",
+    "multer": "^2.2.0",
+    "mysql2": "^3.23.3",
     "nanoid": "^6.0.1",
     "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@types/better-sqlite3": "^9.6.0",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
     "@types/node": "^26.2.0",
     "@types/ws": "^8.18.1",
     "tsx": "^4.23.11",

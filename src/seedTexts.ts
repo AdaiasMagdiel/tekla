@@ -1,6 +1,6 @@
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, basename, extname, resolve } from "path";
-import type Database from "better-sqlite3";
+import type { DbAdapter } from "./db.js";
 
 export interface SeedRow {
   content: string;
@@ -70,29 +70,35 @@ export function parseSeedFile(filePath: string, forcedLang: string | null): Seed
 // Inserts rows into the `texts` table (optionally clearing it first) and
 // returns a summary. Does not pick which files to read — call
 // collectSeedFiles/parseSeedFile first, or just build rows directly.
-export function importSeedRows(
-  db: Database.Database,
+export async function importSeedRows(
+  db: DbAdapter,
   rows: SeedRow[],
   opts: { clear?: boolean } = {}
-): ImportResult {
+): Promise<ImportResult> {
   if (opts.clear) {
-    db.pragma("foreign_keys = OFF");
-    db.exec("DELETE FROM texts");
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'texts'");
-    db.pragma("foreign_keys = ON");
+    if (db.driver === "sqlite") {
+      await db.exec("PRAGMA foreign_keys = OFF");
+      await db.exec("DELETE FROM texts");
+      await db.exec("DELETE FROM sqlite_sequence WHERE name = 'texts'");
+      await db.exec("PRAGMA foreign_keys = ON");
+    } else {
+      await db.exec("SET FOREIGN_KEY_CHECKS = 0");
+      await db.exec("TRUNCATE TABLE texts"); // also resets AUTO_INCREMENT
+      await db.exec("SET FOREIGN_KEY_CHECKS = 1");
+    }
   }
 
-  const insert = db.prepare("INSERT INTO texts (content, lang) VALUES (?, ?)");
-  const insertAll = db.transaction((items: SeedRow[]) => {
-    for (const row of items) insert.run(row.content, row.lang);
+  await db.transaction(async (tx) => {
+    for (const row of rows) {
+      await tx.run("INSERT INTO texts (content, lang) VALUES (?, ?)", [row.content, row.lang]);
+    }
   });
-  insertAll(rows);
 
   const byLang = rows.reduce<Record<string, number>>((acc, t) => {
     acc[t.lang] = (acc[t.lang] || 0) + 1;
     return acc;
   }, {});
-  const total = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
+  const total = (await db.get<{ c: number }>("SELECT COUNT(*) as c FROM texts"))!.c;
 
   return { imported: rows.length, total, byLang };
 }

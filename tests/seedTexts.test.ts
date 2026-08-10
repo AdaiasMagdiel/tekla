@@ -84,9 +84,9 @@ describe("parseSeedFile", () => {
 });
 
 describe("importSeedRows", () => {
-  it("inserts rows and reports a per-language summary", () => {
-    const db = testDb();
-    const result = importSeedRows(db, [
+  it("inserts rows and reports a per-language summary", async () => {
+    const db = await testDb();
+    const result = await importSeedRows(db, [
       { content: "A.", lang: "pt" },
       { content: "B.", lang: "en" },
       { content: "C.", lang: "pt" },
@@ -95,19 +95,19 @@ describe("importSeedRows", () => {
     expect(result).toEqual({ imported: 3, total: 3, byLang: { pt: 2, en: 1 } });
   });
 
-  it("adds to existing texts by default", () => {
-    const db = testDb();
-    seedText(db, "Already here.", "pt");
+  it("adds to existing texts by default", async () => {
+    const db = await testDb();
+    await seedText(db, "Already here.", "pt");
 
-    const result = importSeedRows(db, [{ content: "New.", lang: "en" }]);
+    const result = await importSeedRows(db, [{ content: "New.", lang: "en" }]);
     expect(result.total).toBe(2);
   });
 
-  it("wipes existing texts first when clear is set", () => {
-    const db = testDb();
-    seedText(db, "Old.", "pt");
+  it("wipes existing texts first when clear is set", async () => {
+    const db = await testDb();
+    await seedText(db, "Old.", "pt");
 
-    const result = importSeedRows(db, [{ content: "New.", lang: "en" }], { clear: true });
+    const result = await importSeedRows(db, [{ content: "New.", lang: "en" }], { clear: true });
     expect(result.total).toBe(1);
     expect(result.byLang).toEqual({ en: 1 });
   });

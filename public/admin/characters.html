@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Salas — Admin Tekla</title>
+  <title>Personagens — Admin Tekla</title>
   <meta name="robots" content="noindex" />
   <script src="/js/theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -31,20 +31,24 @@
       <a href="/admin/characters.html"><i data-lucide="user-round" class="icon"></i>Personagens</a>
     </nav>
 
-    <h2><i data-lucide="radio" class="icon"></i>Salas ao vivo</h2>
-    <div id="liveWrap"></div>
+    <div class="toolbar">
+      <div class="spacer"></div>
+      <button class="btn btn-primary" id="newBtn"><i data-lucide="plus" class="icon"></i>Novo personagem</button>
+    </div>
 
-    <h2 style="margin-top:32px;"><i data-lucide="history" class="icon"></i>Histórico de salas</h2>
-    <div id="historyWrap"></div>
+    <div id="tableWrap"></div>
     <div class="pagination" id="pagination"></div>
-
     <div class="error-box" id="errorBox"></div>
+  </div>
+
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-box" id="detailBox"></div>
   </div>
 
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="/js/theme-toggle.js"></script>
   <script src="/admin/js/shared.js"></script>
-  <script src="/admin/js/rooms.js"></script>
+  <script src="/admin/js/characters.js"></script>
   <script>lucide.createIcons();</script>
 </body>
 </html>

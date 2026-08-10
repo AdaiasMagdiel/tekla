@@ -8,7 +8,7 @@
 // Each <path> can be a .json file, a .txt file, or a directory containing
 // either. Run with --help for the full format/options reference.
 
-import { createDb, defaultDbPath } from "../src/db.js";
+import { createDb } from "../src/db.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows, type SeedRow } from "../src/seedTexts.js";
 
 const HELP = `
@@ -59,7 +59,7 @@ function parseArgs(argv: string[]): ParsedOptions {
   return opts;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2));
 
   if (opts.help || opts.paths.length === 0) {
@@ -99,10 +99,14 @@ function main(): void {
     return;
   }
 
-  const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
-  const result = importSeedRows(db, texts, { clear: opts.clear });
+  const db = await createDb();
+  const result = await importSeedRows(db, texts, { clear: opts.clear });
   if (opts.clear) console.log("Cleared existing texts.");
   console.log(`\nImported ${result.imported} text(s) (${summary}). Total texts in database: ${result.total}.`);
+  await db.close();
 }
 
-main();
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

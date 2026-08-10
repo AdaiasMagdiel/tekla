@@ -24,7 +24,9 @@
     "createRoomButton": "Create new room",
     "joinRoomHeading": "Join with a code",
     "roomCodePlaceholder": "e.g. AB3D9K",
-    "joinRoomButton": "Join"
+    "joinRoomButton": "Join",
+    "chooseCharacterHeading": "Choose your character",
+    "noCharacter": "None"
   },
   "room": {
     "title": "Room — Tekla",

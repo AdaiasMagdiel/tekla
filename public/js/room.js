@@ -171,14 +171,24 @@ function renderTrack(room) {
       const statusBadge = p.connected
         ? ""
         : `<span class="badge-pill waiting">${escapeHtml(t("room.offline"))}</span>`;
+      const avatar = p.characterImagePath
+        ? `<img class="avatar" src="${escapeHtml(p.characterImagePath)}" alt="">`
+        : `<span class="dot" style="background:${p.carColor}"></span>`;
       const label = document.createElement("div");
       label.className = "label";
-      label.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)}${p.userId === user.id ? escapeHtml(t("room.you")) : ""} ${statusBadge}`;
+      label.innerHTML = `${avatar}${escapeHtml(p.displayName)}${p.userId === user.id ? escapeHtml(t("room.you")) : ""} ${statusBadge}`;
       lane.appendChild(label);
 
       const car = document.createElement("div");
       car.className = "car" + (p.finished ? " finished" : "");
-      car.textContent = "🏎️";
+      if (p.characterImagePath) {
+        const img = document.createElement("img");
+        img.src = p.characterImagePath;
+        img.alt = "";
+        car.appendChild(img);
+      } else {
+        car.textContent = "🏎️";
+      }
       const pct = Math.min(1, p.progress || 0);
       car.style.left = `calc(${pct * 100}% - ${pct * carSize}px)`;
       lane.appendChild(car);
