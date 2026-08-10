@@ -431,6 +431,29 @@ export async function deleteText(db: DbAdapter, id: number): Promise<DeleteTextR
   }
 }
 
+// Deletes one by one (not a single `DELETE ... WHERE id IN (...)`) so a text
+// still referenced by a room is skipped instead of failing the whole batch.
+export async function deleteTexts(
+  db: DbAdapter,
+  ids: number[]
+): Promise<{ deleted: number[]; skipped: { id: number; reason: "not_found" | "in_use" }[] }> {
+  const deleted: number[] = [];
+  const skipped: { id: number; reason: "not_found" | "in_use" }[] = [];
+  for (const id of ids) {
+    const result = await deleteText(db, id);
+    if (result.ok) deleted.push(id);
+    else skipped.push({ id, reason: result.reason });
+  }
+  return { deleted, skipped };
+}
+
+export async function listTextIds(db: DbAdapter, lang?: string): Promise<number[]> {
+  const where = lang ? "WHERE lang = ?" : "";
+  const params = lang ? [lang] : [];
+  const rows = await db.all<{ id: number }>(`SELECT id FROM texts ${where}`, params);
+  return rows.map((r) => r.id);
+}
+
 // ---------- Characters ----------
 
 export async function listCharacters(
@@ -600,6 +623,22 @@ export function mountAdmin(
     const result = await deleteText(db, Number(req.params.id));
     if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 409).json({ error: result.reason });
     res.json({ ok: true });
+  });
+  // Bulk delete: either { ids: number[] } for a specific selection, or
+  // { all: true, lang? } to wipe everything (optionally scoped to a
+  // language, matching whatever filter is active in the texts.html table).
+  // Texts still referenced by a room are skipped, not failed outright.
+  api.delete("/texts", async (req, res) => {
+    const { ids, all, lang } = (req.body || {}) as { ids?: unknown; all?: unknown; lang?: unknown };
+    let targetIds: number[];
+    if (all === true) {
+      targetIds = await listTextIds(db, typeof lang === "string" && lang.trim() ? lang.trim().toLowerCase() : undefined);
+    } else if (Array.isArray(ids) && ids.length > 0 && ids.every((x) => typeof x === "number" && Number.isInteger(x))) {
+      targetIds = ids;
+    } else {
+      return res.status(400).json({ error: "invalid_input" });
+    }
+    res.json(await deleteTexts(db, targetIds));
   });
 
   api.get("/characters", async (req, res) => {
