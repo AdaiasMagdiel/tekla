@@ -29,13 +29,15 @@ async function loadCharacterPicker() {
 
   const selectedId = stored ? stored.characterId : null;
 
-  const noneBtn = document.createElement("button");
-  noneBtn.type = "button";
-  noneBtn.className = "character-option none-option" + (selectedId == null ? " selected" : "");
-  noneBtn.textContent = "🏎️";
-  noneBtn.title = t("index.noCharacter");
-  noneBtn.addEventListener("click", () => selectCharacter(null));
-  characterPicker.appendChild(noneBtn);
+  if (characters.length === 0) {
+    const noneBtn = document.createElement("button");
+    noneBtn.type = "button";
+    noneBtn.className = "character-option none-option" + (selectedId == null ? " selected" : "");
+    noneBtn.textContent = "🏎️";
+    noneBtn.title = t("index.noCharacter");
+    noneBtn.addEventListener("click", () => selectCharacter(null));
+    characterPicker.appendChild(noneBtn);
+  }
 
   characters.forEach((c) => {
     const btn = document.createElement("button");
@@ -66,8 +68,12 @@ async function selectCharacter(characterId) {
   stored = { ...user, characterId: data.characterId, characterImagePath: data.characterImagePath ?? null };
   localStorage.setItem("tekla_user", JSON.stringify(stored));
 
+  const hasNoneBtn = characters.length === 0;
   [...characterPicker.children].forEach((el, i) => {
-    el.classList.toggle("selected", i === 0 ? characterId == null : characters[i - 1]?.id === characterId);
+    el.classList.toggle(
+      "selected",
+      hasNoneBtn && i === 0 ? characterId == null : characters[hasNoneBtn ? i - 1 : i]?.id === characterId,
+    );
   });
 }
 
