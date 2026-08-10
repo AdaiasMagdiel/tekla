@@ -2,16 +2,19 @@ import { nanoid } from "nanoid";
 import type { DbAdapter } from "./db.js";
 import type { UserRow } from "./types.js";
 
-export async function createUser(db: DbAdapter, username: string, displayName: string): Promise<UserRow> {
+export async function createUser(
+  db: DbAdapter,
+  username: string,
+  displayName: string,
+  passwordHash: string
+): Promise<UserRow> {
   const id = nanoid(12);
   const now = Date.now();
-  await db.run("INSERT INTO users (id, username, display_name, created_at) VALUES (?, ?, ?, ?)", [
-    id,
-    username,
-    displayName,
-    now,
-  ]);
-  return { id, username, display_name: displayName, created_at: now, character_id: null };
+  await db.run(
+    "INSERT INTO users (id, username, display_name, created_at, password_hash) VALUES (?, ?, ?, ?, ?)",
+    [id, username, displayName, now, passwordHash]
+  );
+  return { id, username, display_name: displayName, created_at: now, character_id: null, password_hash: passwordHash };
 }
 
 export async function getUserByUsername(db: DbAdapter, username: string): Promise<UserRow | undefined> {

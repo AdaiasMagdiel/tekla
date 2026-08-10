@@ -36,26 +36,47 @@
       <nav>
         <a href="/ranking"><i data-lucide="trophy" class="icon"></i><span data-i18n="nav.ranking">Ranking</span></a>
         <a href="/profile" id="profileLink" style="display:none;"><i data-lucide="user" class="icon"></i><span data-i18n="nav.profile">Meu perfil</span></a>
+        <button class="btn btn-secondary" id="logoutBtn" style="display:none;"><i data-lucide="log-out" class="icon"></i><span data-i18n="index.logoutButton">Sair</span></button>
         <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema"></button>
       </nav>
     </header>
 
-    <div class="panel">
+    <div class="panel" id="authPanel">
       <h1 class="hero-title" data-i18n="index.heading">Corrida de digitação em tempo real</h1>
-      <p class="sub" data-i18n="index.subtitle">Escolha um nome de usuário, crie uma sala ou entre com um código e corra contra seus amigos.</p>
+      <p class="sub" data-i18n="index.subtitle">Entre ou crie uma conta para correr contra seus amigos.</p>
+
+      <div class="auth-tabs" style="display:flex; gap:8px; margin-bottom:16px;">
+        <button type="button" class="btn btn-secondary" id="loginTabBtn" data-i18n="index.loginTab">Entrar</button>
+        <button type="button" class="btn btn-secondary" id="registerTabBtn" data-i18n="index.registerTab">Criar conta</button>
+      </div>
 
       <div class="grid-2">
         <div>
           <label for="username" data-i18n="index.usernameLabel">Nome de usuário</label>
-          <input type="text" id="username" placeholder="ex: beremiz.samir" data-i18n-placeholder="index.usernamePlaceholder" maxlength="16" autocomplete="off" />
+          <input type="text" id="username" placeholder="ex: beremiz.samir" data-i18n-placeholder="index.usernamePlaceholder" maxlength="16" autocomplete="username" />
         </div>
-        <div>
+        <div id="displayNameField">
           <label for="displayName" data-i18n="index.displayNameLabel">Seu nome</label>
           <input type="text" id="displayName" placeholder="ex: Adaías Magdiel" data-i18n-placeholder="index.displayNamePlaceholder" maxlength="40" autocomplete="off" />
         </div>
       </div>
 
-      <div style="margin-top: 24px;">
+      <div style="margin-top: 16px;">
+        <label for="password" data-i18n="index.passwordLabel">Senha</label>
+        <input type="password" id="password" data-i18n-placeholder="index.passwordPlaceholder" placeholder="mín. 8 caracteres" maxlength="200" autocomplete="current-password" />
+      </div>
+
+      <div style="margin-top: 20px;">
+        <button class="btn btn-primary btn-block" id="authSubmitBtn" data-i18n="index.loginButton">Entrar</button>
+      </div>
+
+      <div class="error-box" id="errorBox"></div>
+    </div>
+
+    <div class="panel" id="appPanel" style="display:none;">
+      <p class="sub" id="welcomeMsg"></p>
+
+      <div style="margin-top: 8px;">
         <label data-i18n="index.chooseCharacterHeading">Escolha seu personagem</label>
         <div class="character-picker" id="characterPicker"></div>
       </div>
@@ -74,7 +95,7 @@
         </div>
       </div>
 
-      <div class="error-box" id="errorBox"></div>
+      <div class="error-box" id="appErrorBox"></div>
     </div>
   </div>
 

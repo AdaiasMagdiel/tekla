@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { createUser, getUserById, getUserByUsername, isValidUsername } from "../src/users.js";
+import { hashPassword } from "../src/auth.js";
 import { testDb } from "./helpers.js";
 
 describe("isValidUsername", () => {
@@ -31,7 +32,7 @@ describe("isValidUsername", () => {
 describe("user persistence", () => {
   it("creates a user and reads it back by id and by username", async () => {
     const db = await testDb();
-    const created = await createUser(db, "adaias_m", "Adaías");
+    const created = await createUser(db, "adaias_m", "Adaías", hashPassword("supersecret"));
 
     expect(created.username).toBe("adaias_m");
     expect(created.display_name).toBe("Adaías");
@@ -49,7 +50,7 @@ describe("user persistence", () => {
 
   it("enforces unique usernames at the database level", async () => {
     const db = await testDb();
-    await createUser(db, "duplicate", "First");
-    await expect(createUser(db, "duplicate", "Second")).rejects.toThrow();
+    await createUser(db, "duplicate", "First", hashPassword("password1"));
+    await expect(createUser(db, "duplicate", "Second", hashPassword("password2"))).rejects.toThrow();
   });
 });

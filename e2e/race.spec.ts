@@ -2,8 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 
 async function signUp(page: Page, username: string, displayName: string) {
   await page.goto("/");
+  await page.locator("#registerTabBtn").click();
   await page.locator("#username").fill(username);
   await page.locator("#displayName").fill(displayName);
+  await page.locator("#password").fill("testpassword123");
+  await page.locator("#authSubmitBtn").click();
+  await expect(page.locator("#appPanel")).toBeVisible();
 }
 
 test("two players race end-to-end: create room, join, race, see results", async ({ browser }) => {

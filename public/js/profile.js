@@ -6,17 +6,10 @@ function usernameFromPath() {
   return idx !== -1 && segments[idx + 1] ? decodeURIComponent(segments[idx + 1]) : null;
 }
 
-const stored = JSON.parse(localStorage.getItem("tekla_user") || "null");
-const username = usernameFromPath() || stored?.username;
-
 const profileTitle = document.getElementById("profileTitle");
 const profileSub = document.getElementById("profileSub");
 const summaryStats = document.getElementById("summaryStats");
 const historyWrap = document.getElementById("historyWrap");
-
-if (!username) {
-  window.location.href = "/";
-}
 
 function escapeHtml(str) {
   const div = document.createElement("div");
@@ -35,7 +28,25 @@ function formatDate(ts) {
   });
 }
 
-fetch(`/api/users/${encodeURIComponent(username)}/stats`)
+async function resolveUsername() {
+  const fromPath = usernameFromPath();
+  if (fromPath) return fromPath;
+  const res = await fetch("/api/auth/me");
+  if (!res.ok) return null;
+  const me = await res.json();
+  return me.username;
+}
+
+resolveUsername().then((username) => {
+  if (!username) {
+    window.location.href = "/";
+    return;
+  }
+  loadProfile(username);
+});
+
+function loadProfile(username) {
+  fetch(`/api/users/${encodeURIComponent(username)}/stats`)
   .then(async (r) => {
     if (!r.ok) {
       const data = await r.json().catch(() => ({}));
@@ -82,3 +93,4 @@ fetch(`/api/users/${encodeURIComponent(username)}/stats`)
     profileSub.textContent = "";
     historyWrap.innerHTML = `<div class="empty-msg">${escapeHtml(err.message)}</div>`;
   });
+}

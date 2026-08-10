@@ -1,5 +1,6 @@
 import { createDb } from "../src/db.js";
 import { createUser } from "../src/users.js";
+import { hashPassword } from "../src/auth.js";
 import type { DbAdapter } from "../src/db.js";
 import type { UserRow } from "../src/types.js";
 
@@ -45,7 +46,8 @@ export async function seedText(
 export async function testUser(
   db: DbAdapter,
   username = "tester",
-  displayName = "Tester"
+  displayName = "Tester",
+  password = "testpassword"
 ): Promise<UserRow> {
-  return createUser(db, username, displayName);
+  return createUser(db, username, displayName, hashPassword(password));
 }
