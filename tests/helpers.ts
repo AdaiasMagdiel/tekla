@@ -1,16 +1,42 @@
 import { createDb } from "../src/db.js";
 import { createUser } from "../src/users.js";
-import type Database from "better-sqlite3";
+import type { DbAdapter } from "../src/db.js";
+import type { UserRow } from "../src/types.js";
 
-export function testDb(): Database.Database {
+// Reverse dependency order, so a plain TRUNCATE (no FK-check juggling needed
+// beyond this ordering) never hits a "row is referenced" error.
+const TABLES = ["race_results", "rooms", "users", "texts", "characters"];
+
+// SQLite gets a fresh ":memory:" database per call — cheap and fully
+// isolated, same as before migrations existed. MySQL has no equivalent, so
+// instead we connect once (migrations run once) and TRUNCATE everything
+// before each call, which gives the same "clean slate" guarantee without
+// reconnecting/re-migrating per test.
+let mysqlDb: Promise<DbAdapter> | null = null;
+
+export async function testDb(): Promise<DbAdapter> {
+  if (process.env.DB_DRIVER === "mysql") {
+    if (!mysqlDb) mysqlDb = createDb();
+    const db = await mysqlDb;
+    await db.exec("SET FOREIGN_KEY_CHECKS = 0");
+    for (const table of TABLES) {
+      await db.exec(`TRUNCATE TABLE ${table}`);
+    }
+    await db.exec("SET FOREIGN_KEY_CHECKS = 1");
+    return db;
+  }
   return createDb(":memory:");
 }
 
-export function seedText(db: Database.Database, content: string, lang = "pt"): number {
-  const info = db.prepare("INSERT INTO texts (content, lang) VALUES (?, ?)").run(content, lang);
-  return Number(info.lastInsertRowid);
+export async function seedText(db: DbAdapter, content: string, lang = "pt"): Promise<number> {
+  const info = await db.run("INSERT INTO texts (content, lang) VALUES (?, ?)", [content, lang]);
+  return info.lastInsertRowid;
 }
 
-export function testUser(db: Database.Database, username = "tester", displayName = "Tester") {
+export async function testUser(
+  db: DbAdapter,
+  username = "tester",
+  displayName = "Tester"
+): Promise<UserRow> {
   return createUser(db, username, displayName);
 }

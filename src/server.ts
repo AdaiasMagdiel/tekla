@@ -4,15 +4,15 @@ import { createServer } from "http";
 import { readFileSync } from "fs";
 import path from "path";
 
-import { createDb, defaultDbPath } from "./db.js";
+import { createDb } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager, type RoomState } from "./rooms.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
 import { mountAdmin, createAdminAuthMiddleware } from "./admin.js";
 
-const db = createDb(process.env.DATABASE_PATH || defaultDbPath());
+const db = await createDb();
 
-let textCount = (db.prepare("SELECT COUNT(*) as c FROM texts").get() as { c: number }).c;
+let textCount = (await db.get<{ c: number }>("SELECT COUNT(*) as c FROM texts"))!.c;
 
 // Opt-in only (unset by default, so local `npm start` behaves exactly as
 // before): if AUTO_SEED_DIR is set and the database is empty, load whatever
@@ -27,7 +27,7 @@ if (textCount === 0 && process.env.AUTO_SEED_DIR) {
       parseSeedFile(file, null).filter((t) => t.content && t.content.trim())
     );
     if (rows.length > 0) {
-      const result = importSeedRows(db, rows);
+      const result = await importSeedRows(db, rows);
       console.log(
         `Auto-seeded ${result.imported} race text(s) from ${process.env.AUTO_SEED_DIR} (database was empty).`
       );
@@ -122,11 +122,18 @@ app.use(
 
 const rooms = new RoomManager(db);
 
+async function getCharacterImagePath(characterId: number): Promise<string | null> {
+  const row = await db.get<{ imagePath: string }>("SELECT image_path as imagePath FROM characters WHERE id = ?", [
+    characterId,
+  ]);
+  return row?.imagePath ?? null;
+}
+
 // ---------- REST API ----------
 // Error responses use short codes (not localized strings) — the client maps
 // them to the active UI language via public/i18n/<lang>.json.
 
-app.post("/api/users", (req: Request, res: Response) => {
+app.post("/api/users", async (req: Request, res: Response) => {
   const { username, displayName } = (req.body || {}) as { username?: unknown; displayName?: unknown };
   if (!isValidUsername(username)) {
     return res.status(400).json({ error: "invalid_username" });
@@ -134,23 +141,46 @@ app.post("/api/users", (req: Request, res: Response) => {
   const name = (typeof displayName === "string" ? displayName : "").trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: "missing_display_name" });
 
-  const existing = getUserByUsername(db, username);
-  if (existing) {
-    return res.json({
-      id: existing.id,
-      username: existing.username,
-      displayName: existing.display_name,
-    });
-  }
-  const user = createUser(db, username, name);
-  res.json({ id: user.id, username: user.username, displayName: user.display_name });
+  const existing = await getUserByUsername(db, username);
+  const user = existing ?? (await createUser(db, username, name));
+  res.json({
+    id: user.id,
+    username: user.username,
+    displayName: user.display_name,
+    characterId: user.character_id,
+    characterImagePath: user.character_id ? await getCharacterImagePath(user.character_id) : null,
+  });
 });
 
-app.post("/api/rooms", (req: Request, res: Response) => {
+app.get("/api/characters", async (_req: Request, res: Response) => {
+  const rows = await db.all("SELECT id, name, image_path as imagePath FROM characters ORDER BY name");
+  res.json(rows);
+});
+
+app.post("/api/users/:id/character", async (req: Request, res: Response) => {
+  const { characterId } = (req.body || {}) as { characterId?: unknown };
+  const user = await getUserById(db, String(req.params.id ?? ""));
+  if (!user) return res.status(404).json({ error: "user_not_found" });
+
+  if (characterId === null) {
+    await db.run("UPDATE users SET character_id = NULL WHERE id = ?", [user.id]);
+    return res.json({ characterId: null });
+  }
+  if (typeof characterId !== "number" || !Number.isInteger(characterId)) {
+    return res.status(400).json({ error: "invalid_character" });
+  }
+  const imagePath = await getCharacterImagePath(characterId);
+  if (imagePath === null) return res.status(400).json({ error: "invalid_character" });
+
+  await db.run("UPDATE users SET character_id = ? WHERE id = ?", [characterId, user.id]);
+  res.json({ characterId, characterImagePath: imagePath });
+});
+
+app.post("/api/rooms", async (req: Request, res: Response) => {
   const { userId, lang } = (req.body || {}) as { userId?: string; lang?: string };
-  const user = getUserById(db, userId ?? "");
+  const user = await getUserById(db, userId ?? "");
   if (!user) return res.status(401).json({ error: "invalid_user" });
-  const room = rooms.createRoom(user, SUPPORTED_LANGS.includes(lang ?? "") ? lang : null);
+  const room = await rooms.createRoom(user, SUPPORTED_LANGS.includes(lang ?? "") ? lang : null);
   res.json({ code: room.code });
 });
 
@@ -160,68 +190,64 @@ app.get("/api/rooms/:code", (req: Request, res: Response) => {
   res.json(rooms.publicState(room));
 });
 
-app.post("/api/rooms/:code/join", (req: Request, res: Response) => {
+app.post("/api/rooms/:code/join", async (req: Request, res: Response) => {
   const { userId } = (req.body || {}) as { userId?: string };
-  const user = getUserById(db, userId ?? "");
+  const user = await getUserById(db, userId ?? "");
   if (!user) return res.status(401).json({ error: "invalid_user" });
   const room = rooms.getByCode(String(req.params.code ?? ""));
   if (!room) return res.status(404).json({ error: "room_not_found" });
   if (room.status !== "waiting") {
     return res.status(409).json({ error: "race_already_started" });
   }
-  rooms.addParticipant(room, user);
+  await rooms.addParticipant(room, user);
   res.json(rooms.publicState(room));
 });
 
-app.get("/api/leaderboard", (_req: Request, res: Response) => {
-  const rows = db
-    .prepare(
-      `SELECT u.username, u.display_name as displayName,
-              MAX(r.wpm) as bestWpm,
-              ROUND(AVG(r.accuracy), 1) as avgAccuracy,
-              COUNT(*) as races,
-              SUM(CASE WHEN r.position = 1 THEN 1 ELSE 0 END) as wins
-       FROM race_results r
-       JOIN users u ON u.id = r.user_id
-       GROUP BY r.user_id
-       ORDER BY bestWpm DESC
-       LIMIT 50`
-    )
-    .all();
+app.get("/api/leaderboard", async (_req: Request, res: Response) => {
+  const rows = await db.all(
+    `SELECT u.username, u.display_name as displayName,
+            MAX(r.wpm) as bestWpm,
+            ROUND(AVG(r.accuracy), 1) as avgAccuracy,
+            COUNT(*) as races,
+            SUM(CASE WHEN r.position = 1 THEN 1 ELSE 0 END) as wins
+     FROM race_results r
+     JOIN users u ON u.id = r.user_id
+     GROUP BY r.user_id
+     ORDER BY bestWpm DESC
+     LIMIT 50`
+  );
   res.json(rows);
 });
 
-app.get("/api/users/:username/stats", (req: Request, res: Response) => {
-  const user = getUserByUsername(db, String(req.params.username ?? ""));
+app.get("/api/users/:username/stats", async (req: Request, res: Response) => {
+  const user = await getUserByUsername(db, String(req.params.username ?? ""));
   if (!user) return res.status(404).json({ error: "user_not_found" });
 
-  const summary = db
-    .prepare(
-      `SELECT COUNT(*) as races,
-              MAX(wpm) as bestWpm,
-              ROUND(AVG(wpm), 1) as avgWpm,
-              ROUND(AVG(accuracy), 1) as avgAccuracy,
-              SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as wins
-       FROM race_results WHERE user_id = ?`
-    )
-    .get(user.id) as {
+  const summary = (await db.get<{
     races: number;
     bestWpm: number | null;
     avgWpm: number | null;
     avgAccuracy: number | null;
     wins: number;
-  };
+  }>(
+    `SELECT COUNT(*) as races,
+            MAX(wpm) as bestWpm,
+            ROUND(AVG(wpm), 1) as avgWpm,
+            ROUND(AVG(accuracy), 1) as avgAccuracy,
+            SUM(CASE WHEN position = 1 THEN 1 ELSE 0 END) as wins
+     FROM race_results WHERE user_id = ?`,
+    [user.id]
+  ))!;
 
-  const history = db
-    .prepare(
-      `SELECT r.room_id as roomCode, r.wpm, r.accuracy, r.position, r.time_ms as timeMs, r.finished_at as finishedAt,
-              (SELECT COUNT(*) FROM race_results r2 WHERE r2.room_id = r.room_id) as totalRacers
-       FROM race_results r
-       WHERE r.user_id = ?
-       ORDER BY r.finished_at DESC
-       LIMIT 25`
-    )
-    .all(user.id);
+  const history = await db.all(
+    `SELECT r.room_id as roomCode, r.wpm, r.accuracy, r.position, r.time_ms as timeMs, r.finished_at as finishedAt,
+            (SELECT COUNT(*) FROM race_results r2 WHERE r2.room_id = r.room_id) as totalRacers
+     FROM race_results r
+     WHERE r.user_id = ?
+     ORDER BY r.finished_at DESC
+     LIMIT 25`,
+    [user.id]
+  );
 
   res.json({
     username: user.username,
@@ -265,16 +291,16 @@ function sendState(room: RoomState): void {
   broadcast(room, { type: "state", room: rooms.publicState(room) });
 }
 
-function maybeFinishRoom(room: RoomState): void {
+async function maybeFinishRoom(room: RoomState): Promise<void> {
   const all = [...room.participants.values()];
   const active = all.filter((p) => p.connected);
   if (active.length > 0 && active.every((p) => p.finished)) {
-    rooms.finishRoom(room);
+    await rooms.finishRoom(room);
     broadcast(room, { type: "finish", room: rooms.publicState(room) });
   }
 }
 
-wss.on("connection", (ws: WebSocket, req) => {
+wss.on("connection", async (ws: WebSocket, req) => {
   const url = new URL(req.url ?? "", "http://localhost");
   const code = (url.searchParams.get("room") || "").toUpperCase();
   const isSpectator = url.searchParams.get("spectator") === "1";
@@ -295,120 +321,140 @@ wss.on("connection", (ws: WebSocket, req) => {
   }
 
   const userId = url.searchParams.get("userId");
-  const user = getUserById(db, userId ?? "");
+  const user = await getUserById(db, userId ?? "");
   if (!user) {
     ws.send(JSON.stringify({ type: "error", error: "invalid_user" } satisfies ServerMessage));
     ws.close();
     return;
   }
 
-  const participant = rooms.addParticipant(room, user);
+  const participant = await rooms.addParticipant(room, user);
   participant.ws = ws;
   participant.connected = true;
 
   sendState(room);
 
-  ws.on("message", (raw) => {
-    let msg: any;
+  ws.on("message", async (raw) => {
     try {
-      msg = JSON.parse(raw.toString());
-    } catch {
-      return;
-    }
-
-    if (msg.type === "restart") {
-      if (user.id !== room.hostUserId) return;
-      if (room.status !== "finished") return;
-      rooms.resetRoom(room);
-      sendState(room);
-      return;
-    }
-
-    if (msg.type === "start") {
-      if (user.id !== room.hostUserId) return;
-      if (room.status !== "waiting") return;
-      if (!room.text) {
-        ws.send(JSON.stringify({ type: "error", error: "no_race_texts" } satisfies ServerMessage));
+      let msg: any;
+      try {
+        msg = JSON.parse(raw.toString());
+      } catch {
         return;
       }
 
-      rooms.startCountdown(
-        room,
-        (n) => broadcast(room, { type: "countdown", n }),
-        (text) => {
-          broadcast(room, { type: "go", text });
-          // Keeps PPM/precisão/tempo ticking for everyone (racers + mirror
-          // spectators) even during pauses when nobody is actively typing.
-          rooms.startRaceTicker(room, () => {
-            broadcast(room, { type: "progress", room: rooms.publicState(room) });
-          });
-        }
-      );
-      sendState(room);
-      return;
-    }
-
-    if (msg.type === "typing") {
-      if (room.status !== "racing") return;
-      const p = room.participants.get(user.id);
-      if (!p || p.finished) return;
-
-      const target = room.text!.content;
-      const value = String(msg.value ?? "").slice(0, target.length + 20);
-      const prevLen = p.typed.length;
-
-      if (value.length > prevLen) {
-        for (let i = prevLen; i < value.length; i++) {
-          p.keystrokes++;
-          if (target[i] === value[i]) p.correctKeystrokes++;
-        }
-      }
-      p.typed = value;
-      p.correctLen = rooms.computeProgress(target, value);
-
-      if (p.correctLen === target.length && !p.finished) {
-        p.finished = true;
-        p.finishTimeMs = Date.now() - room.startedAt!;
-        const finishedCount = [...room.participants.values()].filter((x) => x.finished).length;
-        p.position = finishedCount;
-
-        const { wpm, accuracy } = rooms.liveStats(room, p);
-
-        db.prepare(
-          `INSERT INTO race_results (room_id, user_id, wpm, accuracy, position, time_ms, finished_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`
-        ).run(room.id, user.id, wpm, accuracy, p.position, p.finishTimeMs, Date.now());
-
-        // Once someone wins, give stragglers a grace period before the race auto-closes.
-        if (p.position === 1 && !room.graceTimer) {
-          room.graceTimer = setTimeout(() => {
-            room.graceTimer = null;
-            if (room.status === "racing") {
-              rooms.finishRoom(room);
-              broadcast(room, { type: "finish", room: rooms.publicState(room) });
-            }
-          }, 60000);
-        }
+      if (msg.type === "restart") {
+        if (user.id !== room.hostUserId) return;
+        if (room.status !== "finished") return;
+        await rooms.resetRoom(room);
+        sendState(room);
+        return;
       }
 
-      broadcast(room, { type: "progress", room: rooms.publicState(room) });
-      maybeFinishRoom(room);
-      return;
+      if (msg.type === "start") {
+        if (user.id !== room.hostUserId) return;
+        if (room.status !== "waiting") return;
+        if (!room.text) {
+          ws.send(JSON.stringify({ type: "error", error: "no_race_texts" } satisfies ServerMessage));
+          return;
+        }
+
+        rooms.startCountdown(
+          room,
+          (n) => broadcast(room, { type: "countdown", n }),
+          (text) => {
+            broadcast(room, { type: "go", text });
+            // Keeps PPM/precisão/tempo ticking for everyone (racers + mirror
+            // spectators) even during pauses when nobody is actively typing.
+            rooms.startRaceTicker(room, () => {
+              broadcast(room, { type: "progress", room: rooms.publicState(room) });
+            });
+          }
+        );
+        sendState(room);
+        return;
+      }
+
+      if (msg.type === "typing") {
+        if (room.status !== "racing") return;
+        const p = room.participants.get(user.id);
+        if (!p || p.finished) return;
+
+        const target = room.text!.content;
+        const value = String(msg.value ?? "").slice(0, target.length + 20);
+        const prevLen = p.typed.length;
+
+        if (value.length > prevLen) {
+          for (let i = prevLen; i < value.length; i++) {
+            p.keystrokes++;
+            if (target[i] === value[i]) p.correctKeystrokes++;
+          }
+        }
+        p.typed = value;
+        p.correctLen = rooms.computeProgress(target, value);
+
+        // Every in-memory guard below (`p.finished`, `p.position`,
+        // `p.finishTimeMs`) is set synchronously, before the only `await` in
+        // this branch — so a second "typing" message for the same
+        // connection arriving while the INSERT is still in flight (real
+        // network latency under MySQL) hits the `if (!p || p.finished)
+        // return;` guard above and is dropped, instead of double-processing
+        // the finish.
+        if (p.correctLen === target.length && !p.finished) {
+          p.finished = true;
+          p.finishTimeMs = Date.now() - room.startedAt!;
+          const finishedCount = [...room.participants.values()].filter((x) => x.finished).length;
+          p.position = finishedCount;
+
+          const { wpm, accuracy } = rooms.liveStats(room, p);
+
+          await db.run(
+            `INSERT INTO race_results (room_id, user_id, wpm, accuracy, position, time_ms, finished_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [room.id, user.id, wpm, accuracy, p.position, p.finishTimeMs, Date.now()]
+          );
+
+          // Once someone wins, give stragglers a grace period before the race auto-closes.
+          if (p.position === 1 && !room.graceTimer) {
+            room.graceTimer = setTimeout(async () => {
+              try {
+                room.graceTimer = null;
+                if (room.status === "racing") {
+                  await rooms.finishRoom(room);
+                  broadcast(room, { type: "finish", room: rooms.publicState(room) });
+                }
+              } catch (err) {
+                console.error("grace-period finish failed:", err);
+              }
+            }, 60000);
+          }
+        }
+
+        broadcast(room, { type: "progress", room: rooms.publicState(room) });
+        await maybeFinishRoom(room);
+        return;
+      }
+    } catch (err) {
+      console.error("ws message handling failed:", err);
     }
   });
 
-  ws.on("close", () => {
-    const p = room.participants.get(user.id);
-    if (p) {
-      p.connected = false;
-      p.ws = null;
+  ws.on("close", async () => {
+    try {
+      const p = room.participants.get(user.id);
+      if (p) {
+        p.connected = false;
+        p.ws = null;
+      }
+      if (room.status === "waiting") {
+        rooms.removeParticipant(room, user.id);
+      }
+      sendState(room);
+      if (room.status === "racing") await maybeFinishRoom(room);
+      if (room.participants.size === 0) rooms.destroyRoom(room.id);
+    } catch (err) {
+      console.error("ws close handling failed:", err);
     }
-    if (room.status === "waiting") {
-      rooms.removeParticipant(room, user.id);
-    }
-    sendState(room);
-    if (room.status === "racing") maybeFinishRoom(room);
-    if (room.participants.size === 0) rooms.destroyRoom(room.id);
   });
 });
 

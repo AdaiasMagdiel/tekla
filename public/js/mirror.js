@@ -121,9 +121,12 @@ function render(room) {
       const lane = document.createElement("div");
       lane.className = "mirror-lane";
 
+      const avatar = p.characterImagePath
+        ? `<img class="avatar" src="${escapeHtml(p.characterImagePath)}" alt="">`
+        : `<span class="dot" style="background:${p.carColor}"></span>`;
       const nameRow = document.createElement("div");
       nameRow.className = "name-row";
-      nameRow.innerHTML = `<span class="dot" style="background:${p.carColor}"></span>${escapeHtml(p.displayName)} ${!p.connected ? `<span class="badge-pill waiting">${escapeHtml(t("mirror.offline"))}</span>` : ""}`;
+      nameRow.innerHTML = `${avatar}${escapeHtml(p.displayName)} ${!p.connected ? `<span class="badge-pill waiting">${escapeHtml(t("mirror.offline"))}</span>` : ""}`;
       lane.appendChild(nameRow);
 
       const metrics = document.createElement("div");
@@ -140,7 +143,14 @@ function render(room) {
       trackRow.className = "track-row";
       const car = document.createElement("div");
       car.className = "car" + (p.finished ? " finished" : "");
-      car.textContent = "🏎️";
+      if (p.characterImagePath) {
+        const img = document.createElement("img");
+        img.src = p.characterImagePath;
+        img.alt = "";
+        car.appendChild(img);
+      } else {
+        car.textContent = "🏎️";
+      }
       const pct = Math.min(1, p.progress || 0);
       car.style.left = `calc(${pct * 100}% - ${pct * carSize}px)`;
       trackRow.appendChild(car);

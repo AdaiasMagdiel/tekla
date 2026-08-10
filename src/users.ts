@@ -1,22 +1,25 @@
 import { nanoid } from "nanoid";
-import type Database from "better-sqlite3";
+import type { DbAdapter } from "./db.js";
 import type { UserRow } from "./types.js";
 
-export function createUser(db: Database.Database, username: string, displayName: string): UserRow {
+export async function createUser(db: DbAdapter, username: string, displayName: string): Promise<UserRow> {
   const id = nanoid(12);
   const now = Date.now();
-  db.prepare(
-    "INSERT INTO users (id, username, display_name, created_at) VALUES (?, ?, ?, ?)"
-  ).run(id, username, displayName, now);
-  return { id, username, display_name: displayName, created_at: now };
+  await db.run("INSERT INTO users (id, username, display_name, created_at) VALUES (?, ?, ?, ?)", [
+    id,
+    username,
+    displayName,
+    now,
+  ]);
+  return { id, username, display_name: displayName, created_at: now, character_id: null };
 }
 
-export function getUserByUsername(db: Database.Database, username: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE username = ?").get(username) as UserRow | undefined;
+export async function getUserByUsername(db: DbAdapter, username: string): Promise<UserRow | undefined> {
+  return db.get<UserRow>("SELECT * FROM users WHERE username = ?", [username]);
 }
 
-export function getUserById(db: Database.Database, id: string): UserRow | undefined {
-  return db.prepare("SELECT * FROM users WHERE id = ?").get(id) as UserRow | undefined;
+export async function getUserById(db: DbAdapter, id: string): Promise<UserRow | undefined> {
+  return db.get<UserRow>("SELECT * FROM users WHERE id = ?", [id]);
 }
 
 const USERNAME_RE = /^[a-zA-Z0-9_.]{3,16}$/;

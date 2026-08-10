@@ -1,6 +1,6 @@
 import { customAlphabet } from "nanoid";
-import type Database from "better-sqlite3";
 import type { WebSocket } from "ws";
+import type { DbAdapter } from "./db.js";
 import { pickRandomText } from "./texts.js";
 import type { RaceText, UserRow } from "./types.js";
 
@@ -31,6 +31,7 @@ export interface Participant {
   finishTimeMs: number | null;
   position: number | null;
   carColor: string;
+  characterImagePath: string | null;
   connected: boolean;
 }
 
@@ -61,6 +62,7 @@ export interface PublicParticipant {
   username: string;
   displayName: string;
   carColor: string;
+  characterImagePath: string | null;
   connected: boolean;
   progress: number;
   finished: boolean;
@@ -80,15 +82,15 @@ export interface PublicRoomState {
 }
 
 export class RoomManager {
-  private db: Database.Database;
+  private db: DbAdapter;
   private rooms = new Map<string, RoomState>();
   private codeToId = new Map<string, string>();
 
-  constructor(db: Database.Database) {
+  constructor(db: DbAdapter) {
     this.db = db;
   }
 
-  createRoom(hostUser: UserRow, lang?: string | null): RoomState {
+  async createRoom(hostUser: UserRow, lang?: string | null): Promise<RoomState> {
     let code: string;
     do {
       code = genCode();
@@ -97,11 +99,10 @@ export class RoomManager {
     const id = code; // room id == code for simplicity
     const now = Date.now();
 
-    this.db
-      .prepare(
-        `INSERT INTO rooms (id, code, host_user_id, status, created_at) VALUES (?, ?, ?, 'waiting', ?)`
-      )
-      .run(id, code, hostUser.id, now);
+    await this.db.run(
+      `INSERT INTO rooms (id, code, host_user_id, status, created_at) VALUES (?, ?, ?, 'waiting', ?)`,
+      [id, code, hostUser.id, now]
+    );
 
     const state: RoomState = {
       id,
@@ -109,7 +110,7 @@ export class RoomManager {
       hostUserId: hostUser.id,
       status: "waiting",
       // Picked up front so the (blurred) text can be shown while everyone waits.
-      text: pickRandomText(this.db, lang),
+      text: await pickRandomText(this.db, lang),
       lang: lang ?? null,
       participants: new Map(),
       spectators: new Set(), // read-only "mirror" viewers (big screens)
@@ -122,7 +123,7 @@ export class RoomManager {
 
     this.rooms.set(id, state);
     this.codeToId.set(code, id);
-    this.addParticipant(state, hostUser);
+    await this.addParticipant(state, hostUser);
     return state;
   }
 
@@ -140,11 +141,16 @@ export class RoomManager {
     return [...this.rooms.values()];
   }
 
-  addParticipant(room: RoomState, user: UserRow): Participant {
+  async addParticipant(room: RoomState, user: UserRow): Promise<Participant> {
     const existing = room.participants.get(user.id);
     if (existing) return existing;
 
     const colorIndex = room.participants.size % CAR_COLORS.length;
+    const characterImagePath = user.character_id
+      ? ((await this.db.get<{ image_path: string }>("SELECT image_path FROM characters WHERE id = ?", [
+          user.character_id,
+        ]))?.image_path ?? null)
+      : null;
     const p: Participant = {
       user,
       ws: null,
@@ -156,6 +162,7 @@ export class RoomManager {
       finishTimeMs: null,
       position: null,
       carColor: CAR_COLORS[colorIndex]!,
+      characterImagePath,
       connected: false,
     };
     room.participants.set(user.id, p);
@@ -199,6 +206,7 @@ export class RoomManager {
           username: p.user.username,
           displayName: p.user.display_name,
           carColor: p.carColor,
+          characterImagePath: p.characterImagePath,
           connected: p.connected,
           progress: room.text ? p.correctLen / room.text.content.length : 0,
           finished: p.finished,
@@ -217,20 +225,26 @@ export class RoomManager {
     room.status = "countdown";
     let n = 5;
     onTick(n);
-    room.countdownTimer = setInterval(() => {
-      n -= 1;
-      if (n > 0) {
-        onTick(n);
-      } else {
-        clearInterval(room.countdownTimer!);
-        room.countdownTimer = null;
-        onTick(0); // final "Vai!" tick so the UI can clear the overlay
-        room.status = "racing";
-        room.startedAt = Date.now();
-        this.db
-          .prepare("UPDATE rooms SET status='racing', started_at=?, text_id=? WHERE id=?")
-          .run(room.startedAt, room.text!.id, room.id);
-        onGo(room.text!.content);
+    room.countdownTimer = setInterval(async () => {
+      try {
+        n -= 1;
+        if (n > 0) {
+          onTick(n);
+        } else {
+          clearInterval(room.countdownTimer!);
+          room.countdownTimer = null;
+          onTick(0); // final "Vai!" tick so the UI can clear the overlay
+          room.status = "racing";
+          room.startedAt = Date.now();
+          await this.db.run("UPDATE rooms SET status='racing', started_at=?, text_id=? WHERE id=?", [
+            room.startedAt,
+            room.text!.id,
+            room.id,
+          ]);
+          onGo(room.text!.content);
+        }
+      } catch (err) {
+        console.error("countdown tick failed:", err);
       }
     }, 1000);
   }
@@ -256,7 +270,7 @@ export class RoomManager {
     return i;
   }
 
-  finishRoom(room: RoomState): void {
+  async finishRoom(room: RoomState): Promise<void> {
     if (room.status === "finished") return;
     if (room.graceTimer) {
       clearTimeout(room.graceTimer);
@@ -264,15 +278,16 @@ export class RoomManager {
     }
     this.stopRaceTicker(room);
     room.status = "finished";
-    this.db
-      .prepare("UPDATE rooms SET status='finished', finished_at=? WHERE id=?")
-      .run(Date.now(), room.id);
+    await this.db.run("UPDATE rooms SET status='finished', finished_at=? WHERE id=?", [
+      Date.now(),
+      room.id,
+    ]);
   }
 
   // Brings a finished room back to the lobby with a fresh text, so the host
   // can start another race in the same room instead of everyone re-joining
   // with a new code. Past results already live in race_results, untouched.
-  resetRoom(room: RoomState): void {
+  async resetRoom(room: RoomState): Promise<void> {
     if (room.status !== "finished") return;
     if (room.countdownTimer) {
       clearInterval(room.countdownTimer);
@@ -286,7 +301,7 @@ export class RoomManager {
 
     room.status = "waiting";
     room.startedAt = null;
-    room.text = pickRandomText(this.db, room.lang);
+    room.text = await pickRandomText(this.db, room.lang);
 
     for (const p of room.participants.values()) {
       p.typed = "";
@@ -298,9 +313,10 @@ export class RoomManager {
       p.position = null;
     }
 
-    this.db
-      .prepare("UPDATE rooms SET status='waiting', text_id=NULL, started_at=NULL, finished_at=NULL WHERE id=?")
-      .run(room.id);
+    await this.db.run(
+      "UPDATE rooms SET status='waiting', text_id=NULL, started_at=NULL, finished_at=NULL WHERE id=?",
+      [room.id]
+    );
   }
 
   destroyRoom(roomId: string): void {

@@ -87,6 +87,12 @@
   filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
 }
 .mirror-lane .car.finished { filter: drop-shadow(0 0 8px var(--good)); }
+.mirror-lane .car img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
 
 .mirror-lane .name-row {
   order: 1;
@@ -99,6 +105,9 @@
 }
 .mirror-lane .name-row .dot {
   width: 12px; height: 12px; border-radius: 50%;
+}
+.mirror-lane .name-row .avatar {
+  width: 24px; height: 24px; border-radius: 50%; object-fit: cover;
 }
 .mirror-lane .name-row .badge-pill {
   font-size: 0.7rem;

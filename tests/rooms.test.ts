@@ -1,10 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import type Database from "better-sqlite3";
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import type { DbAdapter } from "../src/db.js";
 import { RoomManager } from "../src/rooms.js";
 import { testDb, testUser, seedText } from "./helpers.js";
 
 describe("RoomManager.computeProgress", () => {
-  const rooms = new RoomManager(testDb());
+  let rooms: RoomManager;
+
+  beforeAll(async () => {
+    rooms = new RoomManager(await testDb());
+  });
 
   it("returns the length of the longest correct prefix", () => {
     expect(rooms.computeProgress("hello world", "hello")).toBe(5);
@@ -28,18 +32,18 @@ describe("RoomManager.computeProgress", () => {
 });
 
 describe("RoomManager room lifecycle", () => {
-  let db: Database.Database;
+  let db: DbAdapter;
   let rooms: RoomManager;
 
-  beforeEach(() => {
-    db = testDb();
-    seedText(db, "Race text for the room.", "pt");
+  beforeEach(async () => {
+    db = await testDb();
+    await seedText(db, "Race text for the room.", "pt");
     rooms = new RoomManager(db);
   });
 
-  it("creates a room with a short, uppercase code and the host as a participant", () => {
-    const host = testUser(db, "host1", "Host");
-    const room = rooms.createRoom(host, "pt");
+  it("creates a room with a short, uppercase code and the host as a participant", async () => {
+    const host = await testUser(db, "host1", "Host");
+    const room = await rooms.createRoom(host, "pt");
 
     expect(room.code).toMatch(/^[A-Z0-9]{6}$/);
     expect(room.status).toBe("waiting");
@@ -48,35 +52,35 @@ describe("RoomManager room lifecycle", () => {
     expect(room.text?.content).toBe("Race text for the room.");
   });
 
-  it("looks a room up by code case-insensitively", () => {
-    const host = testUser(db, "host2", "Host");
-    const room = rooms.createRoom(host);
+  it("looks a room up by code case-insensitively", async () => {
+    const host = await testUser(db, "host2", "Host");
+    const room = await rooms.createRoom(host);
 
     expect(rooms.getByCode(room.code.toLowerCase())).toBe(room);
     expect(rooms.getByCode("NOPE00")).toBeNull();
   });
 
-  it("does not duplicate a participant who joins twice", () => {
-    const host = testUser(db, "host3", "Host");
-    const room = rooms.createRoom(host);
+  it("does not duplicate a participant who joins twice", async () => {
+    const host = await testUser(db, "host3", "Host");
+    const room = await rooms.createRoom(host);
 
-    const first = rooms.addParticipant(room, host);
-    const second = rooms.addParticipant(room, host);
+    const first = await rooms.addParticipant(room, host);
+    const second = await rooms.addParticipant(room, host);
 
     expect(room.participants.size).toBe(1);
     expect(first).toBe(second);
   });
 
-  it("removes participants", () => {
-    const host = testUser(db, "host4", "Host");
-    const room = rooms.createRoom(host);
+  it("removes participants", async () => {
+    const host = await testUser(db, "host4", "Host");
+    const room = await rooms.createRoom(host);
     rooms.removeParticipant(room, host.id);
     expect(room.participants.size).toBe(0);
   });
 
-  it("publicState never leaks the websocket handle and starts everyone at 0 progress", () => {
-    const host = testUser(db, "host5", "Host");
-    const room = rooms.createRoom(host, "pt");
+  it("publicState never leaks the websocket handle and starts everyone at 0 progress", async () => {
+    const host = await testUser(db, "host5", "Host");
+    const room = await rooms.createRoom(host, "pt");
     const state = rooms.publicState(room);
 
     expect(state.text).toBe("Race text for the room.");
@@ -84,30 +88,58 @@ describe("RoomManager room lifecycle", () => {
     expect((state.participants[0] as unknown as Record<string, unknown>).ws).toBeUndefined();
     expect(state.participants[0]?.progress).toBe(0);
   });
+
+  it("attaches characterImagePath: null when the user has no character chosen", async () => {
+    const host = await testUser(db, "host9", "Host");
+    const room = await rooms.createRoom(host);
+    const p = await rooms.addParticipant(room, host);
+
+    expect(p.characterImagePath).toBeNull();
+    expect(rooms.publicState(room).participants[0]?.characterImagePath).toBeNull();
+  });
+
+  it("propagates the chosen character's image path into the participant and publicState", async () => {
+    const info = await db.run("INSERT INTO characters (name, image_path, created_at) VALUES (?, ?, ?)", [
+      "Raio",
+      "/uploads/characters/raio.png",
+      Date.now(),
+    ]);
+    const characterId = info.lastInsertRowid;
+
+    const host = await testUser(db, "host10", "Host");
+    await db.run("UPDATE users SET character_id = ? WHERE id = ?", [characterId, host.id]);
+    const updatedHost = { ...host, character_id: characterId };
+
+    const room = await rooms.createRoom(updatedHost);
+    const p = await rooms.addParticipant(room, updatedHost);
+
+    expect(p.characterImagePath).toBe("/uploads/characters/raio.png");
+    expect(rooms.publicState(room).participants[0]?.characterImagePath).toBe("/uploads/characters/raio.png");
+  });
 });
 
 describe("RoomManager.liveStats", () => {
-  it("returns zeros before the race has started", () => {
-    const db = testDb();
+  it("returns zeros before the race has started", async () => {
+    const db = await testDb();
     const rooms = new RoomManager(db);
-    const host = testUser(db, "host6", "Host");
-    const room = rooms.createRoom(host); // no texts seeded -> room.text is undefined
-    const p = rooms.addParticipant(room, host);
+    const host = await testUser(db, "host6", "Host");
+    const room = await rooms.createRoom(host); // no texts seeded -> room.text is undefined
+    const p = await rooms.addParticipant(room, host);
 
     expect(rooms.liveStats(room, p)).toEqual({ wpm: 0, accuracy: 100, elapsedMs: 0 });
   });
 
-  it("computes WPM from correct characters typed over elapsed time", () => {
+  it("computes WPM from correct characters typed over elapsed time", async () => {
     vi.useFakeTimers();
     try {
-      const db = testDb();
-      seedText(db, "abcdefghij", "pt"); // 10 chars = 2 "words" at 5 chars/word
+      const db = await testDb();
+      await seedText(db, "abcdefghij", "pt"); // 10 chars = 2 "words" at 5 chars/word
       const rooms = new RoomManager(db);
-      const host = testUser(db, "host7", "Host");
+      const host = await testUser(db, "host7", "Host");
 
       const start = Date.now();
-      const room = rooms.createRoom(host, "pt");
-      const p = rooms.addParticipant(room, host);
+      const room = await rooms.createRoom(host, "pt");
+      const p = await rooms.addParticipant(room, host);
       room.startedAt = start;
       p.correctLen = 10;
       p.keystrokes = 10;
@@ -124,13 +156,13 @@ describe("RoomManager.liveStats", () => {
     }
   });
 
-  it("uses the frozen finish time instead of elapsed wall-clock time once finished", () => {
-    const db = testDb();
-    seedText(db, "abcde", "pt");
+  it("uses the frozen finish time instead of elapsed wall-clock time once finished", async () => {
+    const db = await testDb();
+    await seedText(db, "abcde", "pt");
     const rooms = new RoomManager(db);
-    const host = testUser(db, "host8", "Host");
-    const room = rooms.createRoom(host, "pt");
-    const p = rooms.addParticipant(room, host);
+    const host = await testUser(db, "host8", "Host");
+    const room = await rooms.createRoom(host, "pt");
+    const p = await rooms.addParticipant(room, host);
 
     room.startedAt = Date.now() - 10_000;
     p.finished = true;

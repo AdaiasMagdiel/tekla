@@ -29,27 +29,27 @@ describe("isValidUsername", () => {
 });
 
 describe("user persistence", () => {
-  it("creates a user and reads it back by id and by username", () => {
-    const db = testDb();
-    const created = createUser(db, "adaias_m", "Adaías");
+  it("creates a user and reads it back by id and by username", async () => {
+    const db = await testDb();
+    const created = await createUser(db, "adaias_m", "Adaías");
 
     expect(created.username).toBe("adaias_m");
     expect(created.display_name).toBe("Adaías");
     expect(created.id).toBeTruthy();
 
-    expect(getUserById(db, created.id)).toEqual(created);
-    expect(getUserByUsername(db, "adaias_m")).toEqual(created);
+    expect(await getUserById(db, created.id)).toEqual(created);
+    expect(await getUserByUsername(db, "adaias_m")).toEqual(created);
   });
 
-  it("returns undefined for unknown users", () => {
-    const db = testDb();
-    expect(getUserById(db, "does-not-exist")).toBeUndefined();
-    expect(getUserByUsername(db, "does-not-exist")).toBeUndefined();
+  it("returns undefined for unknown users", async () => {
+    const db = await testDb();
+    expect(await getUserById(db, "does-not-exist")).toBeUndefined();
+    expect(await getUserByUsername(db, "does-not-exist")).toBeUndefined();
   });
 
-  it("enforces unique usernames at the database level", () => {
-    const db = testDb();
-    createUser(db, "duplicate", "First");
-    expect(() => createUser(db, "duplicate", "Second")).toThrow();
+  it("enforces unique usernames at the database level", async () => {
+    const db = await testDb();
+    await createUser(db, "duplicate", "First");
+    await expect(createUser(db, "duplicate", "Second")).rejects.toThrow();
   });
 });

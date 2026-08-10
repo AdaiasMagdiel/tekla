@@ -3,3 +3,7 @@ data/*.sqlite
 data/*.sqlite-*
 *.log
 .claude/
+public/uploads/
+test-results/
+playwright-report/
+playwright/.cache/
