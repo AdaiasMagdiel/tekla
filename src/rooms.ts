@@ -2,7 +2,7 @@ import { customAlphabet } from "nanoid";
 import type { WebSocket } from "ws";
 import type { DbAdapter } from "./db.js";
 import { pickRandomText } from "./texts.js";
-import type { RaceText, UserRow } from "./types.js";
+import type { Difficulty, RaceText, UserRow } from "./types.js";
 
 // Avoid ambiguous chars (0/O, 1/I/L) so codes are short and easy to read/type.
 const genCode = customAlphabet("ABCDEFGHJKMNPQRSTUVWXYZ23456789", 6);
@@ -42,6 +42,7 @@ export interface RoomState {
   status: RoomStatus;
   text: RaceText | undefined;
   lang: string | null;
+  difficulty: Difficulty | null;
   participants: Map<string, Participant>;
   spectators: Set<WebSocket>;
   createdAt: number;
@@ -78,6 +79,7 @@ export interface PublicRoomState {
   status: RoomStatus;
   hostUserId: string;
   text: string | null;
+  difficulty: Difficulty | null;
   participants: PublicParticipant[];
 }
 
@@ -112,6 +114,7 @@ export class RoomManager {
       // Picked up front so the (blurred) text can be shown while everyone waits.
       text: await pickRandomText(this.db, lang),
       lang: lang ?? null,
+      difficulty: null,
       participants: new Map(),
       spectators: new Set(), // read-only "mirror" viewers (big screens)
       createdAt: now,
@@ -219,6 +222,7 @@ export class RoomManager {
       status: room.status,
       hostUserId: room.hostUserId,
       text: room.text ? room.text.content : null,
+      difficulty: room.difficulty,
       participants: [...room.participants.values()].map((p) => {
         const stats = this.liveStats(room, p);
         return {
@@ -238,6 +242,15 @@ export class RoomManager {
         };
       }),
     };
+  }
+
+  // Re-picks room.text honoring the difficulty the host chose right as they
+  // hit "start" — the text picked at room creation (for the blurred waiting
+  // preview) didn't know the difficulty yet, since that's only chosen here.
+  async pickTextForStart(room: RoomState, difficulty: Difficulty | null): Promise<RaceText | undefined> {
+    room.difficulty = difficulty;
+    room.text = await pickRandomText(this.db, room.lang, difficulty);
+    return room.text;
   }
 
   startCountdown(room: RoomState, onTick: (n: number) => void, onGo: (text: string) => void): void {
@@ -321,7 +334,7 @@ export class RoomManager {
 
     room.status = "waiting";
     room.startedAt = null;
-    room.text = await pickRandomText(this.db, room.lang);
+    room.text = await pickRandomText(this.db, room.lang, room.difficulty);
 
     for (const p of room.participants.values()) {
       p.typed = "";

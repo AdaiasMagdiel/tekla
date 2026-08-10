@@ -30,7 +30,14 @@
           <div class="room-code-display copy-hint" id="copyHint"><i data-lucide="copy" class="icon"></i><span id="copyHintText" data-i18n="room.copyHint">clique para copiar o link do convite</span></div>
           <div class="room-code-display"><a href="#" id="mirrorLink" target="_blank" style="color:inherit; display:inline-flex; align-items:center; gap:6px;"><i data-lucide="tv" class="icon"></i><span data-i18n="room.mirrorLink">abrir modo telão</span></a></div>
         </div>
-        <button class="btn btn-primary" id="startBtn" style="display:none;" data-i18n="room.startButton">Começar corrida</button>
+        <div id="startControls" style="display:none; gap:8px; align-items:center;">
+          <select id="difficultySelect">
+            <option value="easy" data-i18n="room.difficultyEasy">Fácil</option>
+            <option value="medium" selected data-i18n="room.difficultyMedium">Médio</option>
+            <option value="hard" data-i18n="room.difficultyHard">Difícil</option>
+          </select>
+          <button class="btn btn-primary" id="startBtn" data-i18n="room.startButton">Começar corrida</button>
+        </div>
         <div id="waitingHostMsg" class="room-code-display" style="display:none;" data-i18n="room.waitingHost">Aguardando o dono da sala começar…</div>
       </div>
 

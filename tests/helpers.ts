@@ -28,8 +28,17 @@ export async function testDb(): Promise<DbAdapter> {
   return createDb(":memory:");
 }
 
-export async function seedText(db: DbAdapter, content: string, lang = "pt"): Promise<number> {
-  const info = await db.run("INSERT INTO texts (content, lang) VALUES (?, ?)", [content, lang]);
+export async function seedText(
+  db: DbAdapter,
+  content: string,
+  lang = "pt",
+  difficulty = "medium"
+): Promise<number> {
+  const info = await db.run("INSERT INTO texts (content, lang, difficulty) VALUES (?, ?, ?)", [
+    content,
+    lang,
+    difficulty,
+  ]);
   return info.lastInsertRowid;
 }
 

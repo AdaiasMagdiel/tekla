@@ -98,6 +98,20 @@ describe("RoomManager room lifecycle", () => {
     expect(rooms.publicState(room).participants[0]?.characterImagePath).toBeNull();
   });
 
+  it("pickTextForStart sets room.difficulty and picks a text matching it", async () => {
+    const host = await testUser(db, "host11", "Host");
+    const room = await rooms.createRoom(host, "pt");
+    expect(room.difficulty).toBeNull();
+
+    await seedText(db, "Easy PT.", "pt", "easy");
+    const text = await rooms.pickTextForStart(room, "easy");
+
+    expect(room.difficulty).toBe("easy");
+    expect(text?.content).toBe("Easy PT.");
+    expect(room.text?.content).toBe("Easy PT.");
+    expect(rooms.publicState(room).difficulty).toBe("easy");
+  });
+
   it("propagates the chosen character's image path into the participant and publicState", async () => {
     const info = await db.run("INSERT INTO characters (name, image_path, created_at) VALUES (?, ?, ?)", [
       "Raio",

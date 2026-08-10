@@ -59,8 +59,8 @@ npm run seed -- <path...> [options]
 
 File formats:
 
-- **`.json`** — an array of strings (`["Text one.", "Text two."]`) or an array of objects (`[{ "content": "Text one.", "lang": "en" }]`)
-- **`.txt`** — one race text per line, blank lines ignored
+- **`.json`** — an array of strings (`["Text one.", "Text two."]`) or an array of objects (`[{ "content": "Text one.", "lang": "en", "difficulty": "easy" }]`); `difficulty` is optional (`easy`/`medium`/`hard`, defaults to `medium`)
+- **`.txt`** — one race text per line, blank lines ignored, always imported as `medium` difficulty (use `.json` if you need to set it per text)
 
 Examples:
 
@@ -114,10 +114,14 @@ Authenticate with a bearer token, checked with a timing-safe comparison:
 curl -X POST http://localhost:3000/api/texts \
   -H "Authorization: Bearer a-strong-random-key" \
   -H "Content-Type: application/json" \
-  -d '{"content": "the quick brown fox...", "lang": "en"}'
+  -d '{"content": "the quick brown fox...", "lang": "en", "difficulty": "easy"}'
 ```
 
-Send `{ "texts": [{ "content": "...", "lang": "en" }, ...] }` instead to insert several at once — the response then is `{ "inserted": <count>, "texts": [...] }` rather than a single row.
+`difficulty` is optional (one of `easy`, `medium`, `hard`) and defaults to `medium` when omitted.
+
+Send `{ "texts": [{ "content": "...", "lang": "en", "difficulty": "easy" }, ...] }` instead to insert several at once — the response then is `{ "inserted": <count>, "texts": [...] }` rather than a single row.
+
+`DELETE /api/texts` removes texts with the same bearer key — `{ "ids": [1, 2, 3] }` for a specific selection, or `{ "all": true, "lang": "en" }` to wipe everything (`lang` is optional there too). Texts still referenced by a room are skipped rather than failing the whole request; the response reports both: `{ "deleted": [...], "skipped": [{ "id": 4, "reason": "in_use" }] }`.
 
 ## Project structure
 

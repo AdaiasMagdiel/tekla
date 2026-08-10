@@ -2,14 +2,18 @@ const tableWrap = document.getElementById("tableWrap");
 const pagination = document.getElementById("pagination");
 const errorBox = document.getElementById("errorBox");
 const langFilter = document.getElementById("langFilter");
+const difficultyFilter = document.getElementById("difficultyFilter");
 const newBtn = document.getElementById("newBtn");
 const deleteSelectedBtn = document.getElementById("deleteSelectedBtn");
 const deleteAllBtn = document.getElementById("deleteAllBtn");
 const detailModal = document.getElementById("detailModal");
 const detailBox = document.getElementById("detailBox");
 
+const DIFFICULTY_LABELS = { easy: "Fácil", medium: "Médio", hard: "Difícil" };
+
 let currentPage = 1;
 let currentLang = "";
+let currentDifficulty = "";
 // Only tracks the current page's selection — cleared on every load(), since
 // a fresh page of rows means the checkboxes on screen no longer match it.
 let selectedIds = new Set();
@@ -39,13 +43,19 @@ detailModal.addEventListener("click", (e) => {
 
 function openEditor(text) {
   const isNew = !text;
-  const t = text || { id: null, content: "", lang: currentLang || "pt" };
+  const t = text || { id: null, content: "", lang: currentLang || "pt", difficulty: currentDifficulty || "medium" };
   detailBox.innerHTML = `
     <h2>${isNew ? "Novo texto" : `Editar texto #${t.id}`}</h2>
     <label for="editLang">Idioma</label>
     <select id="editLang">
       <option value="pt" ${t.lang === "pt" ? "selected" : ""}>PT</option>
       <option value="en" ${t.lang === "en" ? "selected" : ""}>EN</option>
+    </select>
+    <label for="editDifficulty" style="margin-top:12px; display:block;">Dificuldade</label>
+    <select id="editDifficulty">
+      <option value="easy" ${t.difficulty === "easy" ? "selected" : ""}>Fácil</option>
+      <option value="medium" ${t.difficulty === "medium" ? "selected" : ""}>Médio</option>
+      <option value="hard" ${t.difficulty === "hard" ? "selected" : ""}>Difícil</option>
     </select>
     <label for="editContent" style="margin-top:12px; display:block;">Conteúdo</label>
     <textarea id="editContent" rows="6" style="width:100%; resize:vertical;">${escapeHtml(t.content)}</textarea>
@@ -60,14 +70,15 @@ function openEditor(text) {
   document.getElementById("saveBtn").addEventListener("click", async () => {
     const content = document.getElementById("editContent").value.trim();
     const lang = document.getElementById("editLang").value;
+    const difficulty = document.getElementById("editDifficulty").value;
     if (!content) return;
     try {
       if (isNew) {
-        await adminFetch("/api/admin/texts", { method: "POST", body: JSON.stringify({ content, lang }) });
+        await adminFetch("/api/admin/texts", { method: "POST", body: JSON.stringify({ content, lang, difficulty }) });
       } else {
         await adminFetch(`/api/admin/texts/${t.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ content, lang }),
+          body: JSON.stringify({ content, lang, difficulty }),
         });
       }
       closeModal();
@@ -112,22 +123,24 @@ async function load() {
   selectedIds = new Set();
   updateDeleteSelectedBtn();
   try {
-    const data = await adminFetch(
-      `/api/admin/texts?page=${currentPage}${currentLang ? `&lang=${encodeURIComponent(currentLang)}` : ""}`
-    );
+    const params = new URLSearchParams({ page: currentPage });
+    if (currentLang) params.set("lang", currentLang);
+    if (currentDifficulty) params.set("difficulty", currentDifficulty);
+    const data = await adminFetch(`/api/admin/texts?${params}`);
     if (!data.rows.length) {
       tableWrap.innerHTML = '<div class="empty-msg">Nenhum texto cadastrado.</div>';
       pagination.innerHTML = "";
       return;
     }
     let html = `<table class="admin-table">
-      <thead><tr><th><input type="checkbox" id="selectAllCheckbox" /></th><th>#</th><th>Idioma</th><th>Conteúdo</th><th></th></tr></thead><tbody>`;
+      <thead><tr><th><input type="checkbox" id="selectAllCheckbox" /></th><th>#</th><th>Idioma</th><th>Dificuldade</th><th>Conteúdo</th><th></th></tr></thead><tbody>`;
     data.rows.forEach((t) => {
       const preview = t.content.length > 90 ? t.content.slice(0, 90) + "…" : t.content;
       html += `<tr data-id="${t.id}">
         <td><input type="checkbox" class="row-checkbox" data-id="${t.id}" /></td>
         <td style="cursor:pointer;">${t.id}</td>
         <td style="cursor:pointer;">${t.lang.toUpperCase()}</td>
+        <td style="cursor:pointer;">${DIFFICULTY_LABELS[t.difficulty] || t.difficulty}</td>
         <td style="cursor:pointer;">${escapeHtml(preview)}</td>
         <td class="actions"><button class="icon-btn edit-btn" data-id="${t.id}" title="Editar"><i data-lucide="pencil" class="icon"></i></button></td>
       </tr>`;
@@ -179,6 +192,12 @@ async function load() {
 
 langFilter.addEventListener("change", () => {
   currentLang = langFilter.value;
+  currentPage = 1;
+  load();
+});
+
+difficultyFilter.addEventListener("change", () => {
+  currentDifficulty = difficultyFilter.value;
   currentPage = 1;
   load();
 });
