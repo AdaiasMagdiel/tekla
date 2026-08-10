@@ -51,8 +51,16 @@ COPY seeds ./seeds
 # somewhere to put the database file before the volume is mounted over it.
 RUN mkdir -p /app/data
 
+# Same story for admin-uploaded character images: not tracked in git, and
+# not baked in from the build context either (see .dockerignore) — created
+# empty here so the app has somewhere to write before the volume below is
+# mounted over it. Without a volume here, every redeploy wipes uploaded
+# character images even though the `characters` DB rows referencing them
+# survive (they're in /app/data).
+RUN mkdir -p /app/public/uploads/characters
+
 EXPOSE 3000
-VOLUME ["/app/data"]
+VOLUME ["/app/data", "/app/public/uploads"]
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD node -e "fetch('http://localhost:' + (process.env.PORT || 3000) + '/').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"

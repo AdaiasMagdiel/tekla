@@ -5,7 +5,9 @@ services:
       - "3000:3000"
     volumes:
       - tekla_data:/app/data
+      - tekla_uploads:/app/public/uploads
     restart: unless-stopped
 
 volumes:
   tekla_data:
+  tekla_uploads:

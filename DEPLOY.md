@@ -22,15 +22,24 @@ Multi-stage, and it doesn't just run `npm start` in a container — that would s
 
 ## Persistent storage (this is the part that actually matters)
 
-**The Dockerfile alone does not create or run anything.** It's a build recipe — Dokploy is what builds the image and runs the container. That distinction matters here because of one thing: the SQLite database lives at `/app/data/tekla.sqlite` **inside the container's writable layer**. If nothing mounts a persistent volume there, every redeploy (which recreates the container) wipes your users, rooms, results, and seeded texts. The `VOLUME ["/app/data"]` line in the Dockerfile documents that this path holds state — it does **not** by itself guarantee Dokploy reuses the same storage across deploys.
+**The Dockerfile alone does not create or run anything.** It's a build recipe — Dokploy is what builds the image and runs the container. That distinction matters here because of **two** separate paths that hold state inside the container's writable layer — if nothing mounts a persistent volume over either of them, every redeploy (which recreates the container) wipes that data:
+
+| Path | What lives there | Volume line in Dockerfile |
+| --- | --- | --- |
+| `/app/data` | The SQLite database (`tekla.sqlite`) — users, rooms, results, seeded texts, and the `characters` table rows | `VOLUME ["/app/data", ...]` |
+| `/app/public/uploads` | Admin-uploaded images (currently just character portraits, under `uploads/characters/`) | `VOLUME [..., "/app/public/uploads"]` |
+
+These are two *independent* volumes, not one — a character's DB row (in `/app/data`) stores an `image_path` like `/uploads/characters/xyz.png` that points at a file physically living under `/app/public/uploads`. If you only mount one of the two, you end up with either orphaned image files with no DB row pointing at them, or DB rows whose `image_path` 404s because the file was wiped on redeploy. Both need to survive a redeploy for the character system to keep working correctly.
+
+The `VOLUME [...]` line in the Dockerfile documents that these paths hold state — it does **not** by itself guarantee Dokploy reuses the same storage across deploys.
 
 Two ways to fix that in Dokploy, pick one:
 
-**Option A — switch this app to a Dokploy "Compose" service** using the `docker-compose.yml` already in this repo, instead of an "Application" with a Build Type. The volume is then declared in code (`tekla_data:/app/data`), not clicked together in a UI, so there's nothing to misconfigure or forget on the next redeploy. This is the more foolproof option if you're setting this up fresh.
+**Option A — switch this app to a Dokploy "Compose" service** using the `docker-compose.yml` already in this repo, instead of an "Application" with a Build Type. Both volumes are then declared in code (`tekla_data:/app/data` and `tekla_uploads:/app/public/uploads`), not clicked together in a UI, so there's nothing to misconfigure or forget on the next redeploy. This is the more foolproof option if you're setting this up fresh.
 
-**Option B — keep the "Application" + Dockerfile setup you already have.** In the app's settings in Dokploy, find the volumes/mounts section (under "Advanced" in current versions) and add a mount with **container path `/app/data`**. Dokploy will create and reuse a named volume for it across redeploys. Do this *before* your first real deploy — if you deploy first and add the mount after, you start over with an empty database.
+**Option B — keep the "Application" + Dockerfile setup you already have.** In the app's settings in Dokploy, find the volumes/mounts section (under "Advanced" in current versions) and add **two** mounts: one with container path `/app/data`, another with container path `/app/public/uploads`. Dokploy will create and reuse a named volume for each across redeploys. Do this *before* your first real deploy — if you deploy first and add the mounts after, you start over with an empty database and no uploaded images.
 
-Either way: **the thing to verify is that `/app/data` is backed by a named volume that survives `docker rm`, not just that the container starts.** A quick check after deploying: create a room, redeploy (or restart the container) from Dokploy, and confirm the room/leaderboard data is still there.
+Either way: **the thing to verify is that both `/app/data` and `/app/public/uploads` are backed by named volumes that survive `docker rm`, not just that the container starts.** A quick check after deploying: create a room and, via `/admin/characters.html`, upload a character image; redeploy (or restart the container) from Dokploy; confirm the room/leaderboard data *and* the character's image (not a broken image icon) are still there.
 
 ## Environment variables
 
@@ -60,4 +69,4 @@ If you want different texts than the bundled examples:
 docker compose up --build
 ```
 
-Open `http://localhost:3000` — texts should already be loaded (auto-seed), no extra command needed. To confirm persistence, `docker compose restart` and check a previously created room/leaderboard entry is still there.
+Open `http://localhost:3000` — texts should already be loaded (auto-seed), no extra command needed. To confirm persistence, `docker compose restart` and check a previously created room/leaderboard entry **and** a previously uploaded character image are still there.
