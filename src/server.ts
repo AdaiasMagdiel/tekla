@@ -469,7 +469,13 @@ wss.on("connection", async (ws: WebSocket, req) => {
 });
 
 // Enabled only if ADMIN_USERNAME/ADMIN_PASSWORD are both set — see admin.ts.
-mountAdmin(app, db, rooms, (room) => broadcast(room, { type: "finish", room: rooms.publicState(room) }));
+mountAdmin(
+  app,
+  db,
+  rooms,
+  (room) => broadcast(room, { type: "finish", room: rooms.publicState(room) }),
+  (room) => sendState(room)
+);
 
 // Enabled only if TEXTS_API_KEY is set — see textsApi.ts.
 mountTextsApi(app, db);

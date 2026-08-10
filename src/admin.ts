@@ -83,6 +83,7 @@ export interface AdminUserDetail {
 export type DeleteUserResult = { ok: true } | { ok: false; reason: "not_found" | "has_history" };
 
 export interface AdminLiveParticipant {
+  userId: string;
   username: string;
   displayName: string;
   connected: boolean;
@@ -310,6 +311,7 @@ export function listLiveRooms(roomManager: RoomManager): AdminLiveRoom[] {
       spectatorCount: room.spectators.size,
       createdAt: room.createdAt,
       participants: publicState.participants.map((p) => ({
+        userId: p.userId,
         username: p.username,
         displayName: p.displayName,
         connected: p.connected,
@@ -320,6 +322,29 @@ export function listLiveRooms(roomManager: RoomManager): AdminLiveRoom[] {
       })),
     };
   });
+}
+
+// Force-finishes a room regardless of whether it's still live in memory —
+// covers the "zombie" case where the process restarted mid-race and the
+// room's DB row is stuck at 'waiting'/'countdown'/'racing' forever, since
+// RoomManager starts empty on boot and that room will never appear in
+// listLiveRooms again for the normal close button to reach.
+export async function forceCloseRoomById(
+  db: DbAdapter,
+  roomManager: RoomManager,
+  id: string
+): Promise<{ ok: true; room: RoomState | null } | { ok: false; reason: "not_found" | "already_finished" }> {
+  const room = roomManager.getByCode(id);
+  if (room) {
+    if (room.status === "finished") return { ok: false, reason: "already_finished" };
+    await roomManager.finishRoom(room);
+    return { ok: true, room };
+  }
+  const existing = await db.get<{ status: string }>("SELECT status FROM rooms WHERE id = ?", [id]);
+  if (!existing) return { ok: false, reason: "not_found" };
+  if (existing.status === "finished") return { ok: false, reason: "already_finished" };
+  await db.run("UPDATE rooms SET status='finished', finished_at=? WHERE id=?", [Date.now(), id]);
+  return { ok: true, room: null };
 }
 
 export async function listRoomHistory(
@@ -542,7 +567,8 @@ export function mountAdmin(
   app: Express,
   db: DbAdapter,
   roomManager: RoomManager,
-  onLiveRoomClosed: (room: RoomState) => void
+  onLiveRoomClosed: (room: RoomState) => void,
+  onRoomStateChanged: (room: RoomState) => void
 ): void {
   const auth = createAdminAuthMiddleware();
   if (!auth) {
@@ -609,6 +635,39 @@ export function mountAdmin(
     if (!room) return res.status(404).json({ error: "not_found" });
     await roomManager.finishRoom(room);
     onLiveRoomClosed(room);
+    res.json({ ok: true });
+  });
+  // Works even after a restart wiped in-memory room state — see
+  // forceCloseRoomById's comment. Reachable from both the live list and the
+  // room history table (id === code, see rooms.ts).
+  api.post("/rooms/:id/force-close", async (req, res) => {
+    const result = await forceCloseRoomById(db, roomManager, req.params.id ?? "");
+    if (!result.ok) return res.status(result.reason === "not_found" ? 404 : 409).json({ error: result.reason });
+    if (result.room) onLiveRoomClosed(result.room);
+    res.json({ ok: true });
+  });
+  // If the participant is still connected, closing their socket runs
+  // through the exact same disconnect handling as a real drop (host
+  // transfer, removal-vs-marked-disconnected, room cleanup) — no logic
+  // duplicated here. If they're already disconnected (a ghost left over
+  // from a dropped connection), remove them directly instead.
+  api.post("/rooms/live/:code/kick/:userId", async (req, res) => {
+    const room = roomManager.getByCode(req.params.code ?? "");
+    if (!room) return res.status(404).json({ error: "room_not_found" });
+    const p = room.participants.get(req.params.userId ?? "");
+    if (!p) return res.status(404).json({ error: "participant_not_found" });
+
+    if (p.ws) {
+      p.ws.close();
+    } else {
+      roomManager.removeParticipant(room, p.user.id);
+      await roomManager.maybeTransferHost(room);
+      if (room.participants.size === 0) {
+        roomManager.destroyRoom(room.id);
+      } else {
+        onRoomStateChanged(room);
+      }
+    }
     res.json({ ok: true });
   });
   api.get("/rooms/history", async (req, res) => {
