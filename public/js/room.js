@@ -60,38 +60,59 @@ copyHint.addEventListener("click", () => {
 });
 
 const proto = window.location.protocol === "https:" ? "wss" : "ws";
-const ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${roomCode}&userId=${user.id}`);
+let ws;
+let reconnectAttempts = 0;
+let reconnectTimer = null;
 
-ws.addEventListener("message", (ev) => {
-  const msg = JSON.parse(ev.data);
-  if (msg.type === "error") {
-    alert(t(`errors.${msg.error}`));
-    window.location.href = "/";
-  } else if (msg.type === "state") {
-    latestState = msg.room;
-    renderState(msg.room);
-  } else if (msg.type === "countdown") {
-    showCountdown(msg.n);
-  } else if (msg.type === "go") {
-    targetText = msg.text;
-    startedAt = Date.now();
-    countdownOverlay.classList.remove("show");
-    beginRace();
-  } else if (msg.type === "progress") {
-    latestState = msg.room;
-    renderState(msg.room);
-  } else if (msg.type === "finish") {
-    latestState = msg.room;
-    renderState(msg.room);
-  }
-});
+// Reconnects using the same room code already parsed from the URL, so a
+// dropped connection (flaky network, laptop sleep) re-joins the same room
+// instead of stranding the user on a dead socket until they reload.
+function connectWs() {
+  clearTimeout(reconnectTimer);
+  ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${roomCode}&userId=${user.id}`);
 
-ws.addEventListener("close", () => {
-  if (latestState && latestState.status !== "finished") {
+  ws.addEventListener("open", () => {
+    reconnectAttempts = 0;
+    if (waitingHostMsg.textContent === t("room.connectionLost")) {
+      waitingHostMsg.style.display = "none";
+    }
+  });
+
+  ws.addEventListener("message", (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "error") {
+      alert(t(`errors.${msg.error}`));
+      window.location.href = "/";
+    } else if (msg.type === "state") {
+      latestState = msg.room;
+      renderState(msg.room);
+    } else if (msg.type === "countdown") {
+      showCountdown(msg.n);
+    } else if (msg.type === "go") {
+      targetText = msg.text;
+      startedAt = Date.now();
+      countdownOverlay.classList.remove("show");
+      beginRace();
+    } else if (msg.type === "progress") {
+      latestState = msg.room;
+      renderState(msg.room);
+    } else if (msg.type === "finish") {
+      latestState = msg.room;
+      renderState(msg.room);
+    }
+  });
+
+  ws.addEventListener("close", () => {
+    if (latestState && latestState.status === "finished") return;
     waitingHostMsg.textContent = t("room.connectionLost");
     waitingHostMsg.style.display = "block";
-  }
-});
+    reconnectAttempts++;
+    const delay = Math.min(1000 * 2 ** (reconnectAttempts - 1), 10000);
+    reconnectTimer = setTimeout(connectWs, delay);
+  });
+}
+
+connectWs();
 
 startBtn.addEventListener("click", () => {
   ws.send(JSON.stringify({ type: "start" }));
@@ -383,6 +404,7 @@ typingInput.addEventListener("input", (e) => {
   if (cLen === targetText.length) {
     finished = true;
     typingInput.disabled = true;
+    clearInterval(statsTicker);
   }
 });
 
@@ -435,6 +457,15 @@ function escapeHtml(str) {
   div.textContent = str;
   return div.innerHTML;
 }
+
+// typingInput.focus() in beginRace() only ever fires once, from a WS message
+// handler rather than a user gesture — on mobile that often fails to raise
+// the keyboard, and on any platform a stray click elsewhere (track, results)
+// leaves the input unfocused with no way back in. Clicking anywhere on the
+// race area re-focuses it.
+raceArea.addEventListener("click", () => {
+  if (!typingInput.disabled) typingInput.focus();
+});
 
 window.addEventListener("resize", () => {
   if (latestState) renderTrack(latestState);
