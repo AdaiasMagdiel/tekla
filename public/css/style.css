@@ -21,7 +21,8 @@
   --muted: #494f5d;
 
   --untyped: #494f5d;
-  --correct: #edefef;
+  --correct: #52e87a;
+  --correct-bg: rgba(82, 232, 122, 0.14);
   --error-text: #ff5252;
   --error-bg: rgba(255, 82, 82, 0.14);
   --caret: #ffc043;
@@ -62,7 +63,8 @@
   --muted: #9da3b0;
 
   --untyped: #9da3b8;
-  --correct: #1a1c20;
+  --correct: #16a34a;
+  --correct-bg: rgba(22, 163, 74, 0.12);
   --error-text: #d62828;
   --error-bg: rgba(214, 40, 40, 0.12);
   --caret: #d62828;
@@ -507,7 +509,7 @@ code.room-code {
 .text-panel.blurred { filter: blur(7px); user-select: none; }
 
 .text-panel .ch { position: relative; color: var(--untyped); transition: color 0.1s ease; }
-.text-panel .ch.correct { color: var(--correct); }
+.text-panel .ch.correct { color: var(--correct); background: var(--correct-bg); border-radius: 2px; }
 .text-panel .ch.wrong { color: var(--error-text); background: var(--error-bg); border-radius: 2px; }
 
 .caret {

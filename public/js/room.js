@@ -238,12 +238,19 @@ function beginRace() {
 
 function renderTextPanel(typed) {
   const target = targetText || "";
+  const cLen = correctPrefixLen(target, typed);
   let html = "";
   for (let i = 0; i < target.length; i++) {
     const ch = target[i];
     let cls = "ch";
-    if (i < typed.length) {
-      cls += typed[i] === ch ? " correct" : " wrong";
+    if (i < cLen) {
+      cls += " correct";
+    } else if (i < typed.length) {
+      // Once the correct prefix stops advancing, every position past it
+      // stays marked wrong — even if a later typed char coincidentally
+      // matches the target — until the user backspaces to fix the first
+      // mismatch.
+      cls += " wrong";
     }
     html += `<span class="${cls}">${escapeHtml(ch)}</span>`;
   }
@@ -316,9 +323,12 @@ document.addEventListener("selectionchange", () => {
   }
 });
 
+let wordDeletedByKeydown = false;
+
 typingInput.addEventListener("keydown", (e) => {
   if (e.key === "Backspace" && (e.ctrlKey || e.metaKey || e.altKey)) {
     e.preventDefault();
+    wordDeletedByKeydown = true;
     deleteOneWordBackward(e.target);
   }
 });
@@ -339,7 +349,8 @@ typingInput.addEventListener("beforeinput", (e) => {
 
   if (e.inputType === "deleteWordBackward") {
     e.preventDefault();
-    deleteOneWordBackward(el);
+    if (!wordDeletedByKeydown) deleteOneWordBackward(el);
+    wordDeletedByKeydown = false;
     return;
   }
 
