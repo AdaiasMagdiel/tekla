@@ -22,7 +22,10 @@ document.getElementById("roomCodeLabel").textContent = roomCode;
 document.getElementById("mirrorLink").href = `${langPrefix()}/mirror/${roomCode}`;
 
 const track = document.getElementById("track");
+const startControls = document.getElementById("startControls");
 const startBtn = document.getElementById("startBtn");
+const difficultySelect = document.getElementById("difficultySelect");
+difficultySelect.setAttribute("aria-label", t("room.difficultyLabel"));
 const waitingHostMsg = document.getElementById("waitingHostMsg");
 const raceArea = document.getElementById("raceArea");
 const textPanel = document.getElementById("textPanel");
@@ -115,7 +118,7 @@ function connectWs() {
 connectWs();
 
 startBtn.addEventListener("click", () => {
-  ws.send(JSON.stringify({ type: "start" }));
+  ws.send(JSON.stringify({ type: "start", difficulty: difficultySelect.value }));
 });
 
 restartBtn.addEventListener("click", () => {
@@ -153,18 +156,19 @@ function renderState(room) {
     // A restart (or a reconnect that missed it) brings the room back to
     // "waiting" while the client is still showing the previous race/results.
     if (raceStarted || finished || resultsShown) resetClientRaceState();
-    startBtn.style.display = isHost ? "inline-flex" : "none";
+    startControls.style.display = isHost ? "flex" : "none";
+    if (isHost && room.difficulty) difficultySelect.value = room.difficulty;
     waitingHostMsg.style.display = isHost ? "none" : "block";
     if (!isHost) waitingHostMsg.textContent = t("room.waitingHost");
   } else if (room.status === "finished") {
-    startBtn.style.display = "none";
+    startControls.style.display = "none";
     waitingHostMsg.style.display = "none";
     // Reconnecting (or reloading) after the race already ended only ever
     // gets a "state" message, never the one-shot "finish" event — render
     // the results here too or the page is stuck showing nothing.
     if (!resultsShown) showResults(room);
   } else {
-    startBtn.style.display = "none";
+    startControls.style.display = "none";
     waitingHostMsg.style.display = "none";
   }
 

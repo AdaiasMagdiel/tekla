@@ -7,6 +7,7 @@ import path from "path";
 import { createDb } from "./db.js";
 import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
 import { RoomManager, type RoomState } from "./rooms.js";
+import { DIFFICULTIES, type Difficulty } from "./types.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
 import { mountAdmin, createAdminAuthMiddleware } from "./admin.js";
 import { mountTextsApi } from "./textsApi.js";
@@ -355,6 +356,13 @@ wss.on("connection", async (ws: WebSocket, req) => {
       if (msg.type === "start") {
         if (user.id !== room.hostUserId) return;
         if (room.status !== "waiting") return;
+
+        const { difficulty } = (msg || {}) as { difficulty?: unknown };
+        const chosenDifficulty: Difficulty | null =
+          typeof difficulty === "string" && (DIFFICULTIES as string[]).includes(difficulty)
+            ? (difficulty as Difficulty)
+            : null;
+        await rooms.pickTextForStart(room, chosenDifficulty);
         if (!room.text) {
           ws.send(JSON.stringify({ type: "error", error: "no_race_texts" } satisfies ServerMessage));
           return;

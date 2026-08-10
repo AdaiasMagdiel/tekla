@@ -1,10 +1,14 @@
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join, basename, extname, resolve } from "path";
 import type { DbAdapter } from "./db.js";
+import { DIFFICULTIES, type Difficulty } from "./types.js";
+
+const DEFAULT_DIFFICULTY: Difficulty = "medium";
 
 export interface SeedRow {
   content: string;
   lang: string;
+  difficulty?: Difficulty;
 }
 
 export interface ImportResult {
@@ -48,12 +52,14 @@ export function parseSeedFile(filePath: string, forcedLang: string | null): Seed
   const fallbackLang = forcedLang || inferLang(filePath);
 
   if (ext === ".json") {
-    const data = JSON.parse(raw) as Array<string | { content: string; lang?: string }>;
-    return data.map((item) =>
-      typeof item === "string"
-        ? { content: item, lang: fallbackLang }
-        : { content: item.content, lang: forcedLang || item.lang || fallbackLang }
-    );
+    const data = JSON.parse(raw) as Array<string | { content: string; lang?: string; difficulty?: string }>;
+    return data.map((item) => {
+      if (typeof item === "string") return { content: item, lang: fallbackLang, difficulty: DEFAULT_DIFFICULTY };
+      const difficulty = DIFFICULTIES.includes(item.difficulty as Difficulty)
+        ? (item.difficulty as Difficulty)
+        : DEFAULT_DIFFICULTY;
+      return { content: item.content, lang: forcedLang || item.lang || fallbackLang, difficulty };
+    });
   }
 
   if (ext === ".txt") {
@@ -61,7 +67,7 @@ export function parseSeedFile(filePath: string, forcedLang: string | null): Seed
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
-      .map((content) => ({ content, lang: fallbackLang }));
+      .map((content) => ({ content, lang: fallbackLang, difficulty: DEFAULT_DIFFICULTY }));
   }
 
   throw new Error(`Unsupported file type: ${filePath}`);
@@ -90,7 +96,11 @@ export async function importSeedRows(
 
   await db.transaction(async (tx) => {
     for (const row of rows) {
-      await tx.run("INSERT INTO texts (content, lang) VALUES (?, ?)", [row.content, row.lang]);
+      await tx.run("INSERT INTO texts (content, lang, difficulty) VALUES (?, ?, ?)", [
+        row.content,
+        row.lang,
+        row.difficulty || DEFAULT_DIFFICULTY,
+      ]);
     }
   });
 

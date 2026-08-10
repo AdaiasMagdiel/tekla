@@ -40,8 +40,8 @@ describe("parseSeedFile", () => {
     writeFileSync(file, JSON.stringify(["A.", "B."]));
 
     expect(parseSeedFile(file, null)).toEqual([
-      { content: "A.", lang: "pt" },
-      { content: "B.", lang: "pt" },
+      { content: "A.", lang: "pt", difficulty: "medium" },
+      { content: "B.", lang: "pt", difficulty: "medium" },
     ]);
   });
 
@@ -51,8 +51,8 @@ describe("parseSeedFile", () => {
     writeFileSync(file, JSON.stringify([{ content: "Hola.", lang: "es" }, { content: "No lang." }]));
 
     expect(parseSeedFile(file, null)).toEqual([
-      { content: "Hola.", lang: "es" },
-      { content: "No lang.", lang: "mixed" },
+      { content: "Hola.", lang: "es", difficulty: "medium" },
+      { content: "No lang.", lang: "mixed", difficulty: "medium" },
     ]);
   });
 
@@ -61,7 +61,24 @@ describe("parseSeedFile", () => {
     const file = join(dir, "es.json");
     writeFileSync(file, JSON.stringify([{ content: "Hola.", lang: "es" }]));
 
-    expect(parseSeedFile(file, "fr")).toEqual([{ content: "Hola.", lang: "fr" }]);
+    expect(parseSeedFile(file, "fr")).toEqual([{ content: "Hola.", lang: "fr", difficulty: "medium" }]);
+  });
+
+  it("parses a JSON array of objects, taking difficulty per item when valid", () => {
+    const dir = tempDir();
+    const file = join(dir, "mixed.json");
+    writeFileSync(
+      file,
+      JSON.stringify([
+        { content: "Easy one.", lang: "en", difficulty: "easy" },
+        { content: "Bogus one.", lang: "en", difficulty: "nightmare" },
+      ])
+    );
+
+    expect(parseSeedFile(file, null)).toEqual([
+      { content: "Easy one.", lang: "en", difficulty: "easy" },
+      { content: "Bogus one.", lang: "en", difficulty: "medium" },
+    ]);
   });
 
   it("parses .txt as one text per non-empty line", () => {
@@ -70,8 +87,8 @@ describe("parseSeedFile", () => {
     writeFileSync(file, "First line.\n\n  Second line.  \n");
 
     expect(parseSeedFile(file, null)).toEqual([
-      { content: "First line.", lang: "en" },
-      { content: "Second line.", lang: "en" },
+      { content: "First line.", lang: "en", difficulty: "medium" },
+      { content: "Second line.", lang: "en", difficulty: "medium" },
     ]);
   });
 

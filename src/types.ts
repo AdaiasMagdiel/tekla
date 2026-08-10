@@ -6,6 +6,9 @@ export interface UserRow {
   character_id: number | null;
 }
 
+export type Difficulty = "easy" | "medium" | "hard";
+export const DIFFICULTIES: Difficulty[] = ["easy", "medium", "hard"];
+
 export interface RaceText {
   id: number;
   content: string;

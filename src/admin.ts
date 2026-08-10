@@ -7,6 +7,7 @@ import multer from "multer";
 import { nanoid } from "nanoid";
 import type { DbAdapter } from "./db.js";
 import type { RoomManager, RoomState } from "./rooms.js";
+import { DIFFICULTIES, type Difficulty } from "./types.js";
 
 // ---------- Auth ----------
 
@@ -137,6 +138,7 @@ export interface AdminTextRow {
   id: number;
   content: string;
   lang: string;
+  difficulty: Difficulty;
 }
 
 export type DeleteTextResult = { ok: true } | { ok: false; reason: "not_found" | "in_use" };
@@ -383,37 +385,61 @@ export async function deleteResult(db: DbAdapter, id: number): Promise<boolean> 
 
 export async function listTexts(
   db: DbAdapter,
-  opts: { lang?: string; page?: number; pageSize?: number } = {}
+  opts: { lang?: string; difficulty?: string; page?: number; pageSize?: number } = {}
 ): Promise<{ rows: AdminTextRow[]; total: number } & Page> {
   const { page, pageSize } = paginationOf(opts);
-  const where = opts.lang ? "WHERE lang = ?" : "";
-  const params = opts.lang ? [opts.lang] : [];
+  const conds: string[] = [];
+  const params: unknown[] = [];
+  if (opts.lang) {
+    conds.push("lang = ?");
+    params.push(opts.lang);
+  }
+  if (opts.difficulty) {
+    conds.push("difficulty = ?");
+    params.push(opts.difficulty);
+  }
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
   const total = (await db.get<{ c: number }>(`SELECT COUNT(*) as c FROM texts ${where}`, params))!.c;
   const rows = await db.all<AdminTextRow>(
-    `SELECT id, content, lang FROM texts ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
+    `SELECT id, content, lang, difficulty FROM texts ${where} ORDER BY id DESC LIMIT ? OFFSET ?`,
     [...params, pageSize, (page - 1) * pageSize]
   );
   return { rows, total, page, pageSize };
 }
 
-export async function createText(db: DbAdapter, content: string, lang: string): Promise<AdminTextRow> {
-  const info = await db.run("INSERT INTO texts (content, lang) VALUES (?, ?)", [content, lang]);
-  return { id: info.lastInsertRowid, content, lang };
+export async function createText(
+  db: DbAdapter,
+  content: string,
+  lang: string,
+  difficulty: Difficulty = "medium"
+): Promise<AdminTextRow> {
+  const info = await db.run("INSERT INTO texts (content, lang, difficulty) VALUES (?, ?, ?)", [
+    content,
+    lang,
+    difficulty,
+  ]);
+  return { id: info.lastInsertRowid, content, lang, difficulty };
 }
 
 export async function updateText(
   db: DbAdapter,
   id: number,
-  fields: { content?: string; lang?: string }
+  fields: { content?: string; lang?: string; difficulty?: string }
 ): Promise<boolean> {
-  const existing = await db.get<{ content: string; lang: string }>(
-    "SELECT content, lang FROM texts WHERE id = ?",
+  const existing = await db.get<{ content: string; lang: string; difficulty: string }>(
+    "SELECT content, lang, difficulty FROM texts WHERE id = ?",
     [id]
   );
   if (!existing) return false;
   const content = fields.content ?? existing.content;
   const lang = fields.lang ?? existing.lang;
-  await db.run("UPDATE texts SET content = ?, lang = ? WHERE id = ?", [content, lang, id]);
+  const difficulty = fields.difficulty ?? existing.difficulty;
+  await db.run("UPDATE texts SET content = ?, lang = ?, difficulty = ? WHERE id = ?", [
+    content,
+    lang,
+    difficulty,
+    id,
+  ]);
   return true;
 }
 
@@ -601,20 +627,38 @@ export function mountAdmin(
 
   api.get("/texts", async (req, res) => {
     const lang = typeof req.query.lang === "string" ? req.query.lang : undefined;
-    res.json(await listTexts(db, { page: Number(req.query.page) || 1, lang }));
+    const difficulty = typeof req.query.difficulty === "string" ? req.query.difficulty : undefined;
+    res.json(await listTexts(db, { page: Number(req.query.page) || 1, lang, difficulty }));
   });
   api.post("/texts", async (req, res) => {
-    const { content, lang } = (req.body || {}) as { content?: unknown; lang?: unknown };
+    const { content, lang, difficulty } = (req.body || {}) as {
+      content?: unknown;
+      lang?: unknown;
+      difficulty?: unknown;
+    };
     if (typeof content !== "string" || !content.trim() || typeof lang !== "string" || !lang.trim()) {
       return res.status(400).json({ error: "invalid_input" });
     }
-    res.json(await createText(db, content.trim(), lang.trim().toLowerCase()));
+    if (difficulty !== undefined && !DIFFICULTIES.includes(difficulty as Difficulty)) {
+      return res.status(400).json({ error: "invalid_input" });
+    }
+    res.json(
+      await createText(db, content.trim(), lang.trim().toLowerCase(), (difficulty as Difficulty) || undefined)
+    );
   });
   api.patch("/texts/:id", async (req, res) => {
-    const { content, lang } = (req.body || {}) as { content?: unknown; lang?: unknown };
+    const { content, lang, difficulty } = (req.body || {}) as {
+      content?: unknown;
+      lang?: unknown;
+      difficulty?: unknown;
+    };
+    if (difficulty !== undefined && !DIFFICULTIES.includes(difficulty as Difficulty)) {
+      return res.status(400).json({ error: "invalid_input" });
+    }
     const ok = await updateText(db, Number(req.params.id), {
       content: typeof content === "string" ? content.trim() : undefined,
       lang: typeof lang === "string" ? lang.trim().toLowerCase() : undefined,
+      difficulty: typeof difficulty === "string" ? difficulty : undefined,
     });
     if (!ok) return res.status(404).json({ error: "not_found" });
     res.json({ ok: true });
