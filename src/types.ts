@@ -4,6 +4,14 @@ export interface UserRow {
   display_name: string;
   created_at: number;
   character_id: number | null;
+  password_hash: string;
+}
+
+export interface SessionRow {
+  token: string;
+  user_id: string;
+  created_at: number;
+  expires_at: number;
 }
 
 export type Difficulty = "easy" | "medium" | "hard";

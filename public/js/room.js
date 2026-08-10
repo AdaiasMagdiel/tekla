@@ -12,11 +12,7 @@ function langPrefix() {
 }
 
 const roomCode = codeFromUrl("room");
-const user = JSON.parse(localStorage.getItem("tekla_user") || "null");
-
-if (!roomCode || !user) {
-  window.location.href = "/";
-}
+let user = null;
 
 document.getElementById("roomCodeLabel").textContent = roomCode;
 document.getElementById("mirrorLink").href = `${langPrefix()}/mirror/${roomCode}`;
@@ -72,7 +68,9 @@ let reconnectTimer = null;
 // instead of stranding the user on a dead socket until they reload.
 function connectWs() {
   clearTimeout(reconnectTimer);
-  ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${roomCode}&userId=${user.id}`);
+  // Identity comes from the session cookie sent with the WS handshake, not a
+  // query param — the server resolves req.user from it.
+  ws = new WebSocket(`${proto}://${window.location.host}/ws?room=${roomCode}`);
 
   ws.addEventListener("open", () => {
     reconnectAttempts = 0;
@@ -115,7 +113,16 @@ function connectWs() {
   });
 }
 
-connectWs();
+async function init() {
+  const res = await fetch("/api/auth/me");
+  if (!roomCode || !res.ok) {
+    window.location.href = "/";
+    return;
+  }
+  user = await res.json();
+  connectWs();
+}
+init();
 
 startBtn.addEventListener("click", () => {
   ws.send(JSON.stringify({ type: "start", difficulty: difficultySelect.value }));

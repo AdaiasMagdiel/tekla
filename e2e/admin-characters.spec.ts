@@ -22,11 +22,15 @@ test("admin uploads a character, a player picks it, and it shows up in the room"
   await expect(admin.locator("#tableWrap")).toContainText(characterName);
   await adminCtx.close();
 
-  // A fresh (unauthenticated) context picks the character on the home page.
+  // A fresh (unauthenticated) context registers, then picks the character.
   const player = await browser.newPage();
   await player.goto("/");
+  await player.locator("#registerTabBtn").click();
   await player.locator("#username").fill(`picker_${Date.now()}`);
   await player.locator("#displayName").fill("Picker Player");
+  await player.locator("#password").fill("testpassword123");
+  await player.locator("#authSubmitBtn").click();
+  await expect(player.locator("#appPanel")).toBeVisible();
 
   // Thumbnails have no visible text — the character's name is only in the title attribute.
   const option = player.locator(`.character-option[title="${characterName}"]`);

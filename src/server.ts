@@ -5,7 +5,21 @@ import { readFileSync } from "fs";
 import path from "path";
 
 import { createDb } from "./db.js";
-import { createUser, getUserByUsername, getUserById, isValidUsername } from "./users.js";
+import { createUser, getUserByUsername, isValidUsername } from "./users.js";
+import {
+  attachSessionUser,
+  requireAuth,
+  hashPassword,
+  verifyPassword,
+  isValidPassword,
+  createSession,
+  deleteSession,
+  setSessionCookie,
+  clearSessionCookie,
+  sessionTokenFromRequest,
+  resolveSessionUserFromCookieHeader,
+  publicUser,
+} from "./auth.js";
 import { RoomManager, type RoomState } from "./rooms.js";
 import { DIFFICULTIES, type Difficulty } from "./types.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
@@ -54,6 +68,7 @@ const publicDir = path.join(process.cwd(), "public");
 
 const app = express();
 app.use(express.json());
+app.use(attachSessionUser(db));
 
 // Cache busting: every local /css, /js and /img reference inside each HTML
 // page gets a `?v=<boot time>` query string appended, and those asset
@@ -135,23 +150,57 @@ async function getCharacterImagePath(characterId: number): Promise<string | null
 // Error responses use short codes (not localized strings) — the client maps
 // them to the active UI language via public/i18n/<lang>.json.
 
-app.post("/api/users", async (req: Request, res: Response) => {
-  const { username, displayName } = (req.body || {}) as { username?: unknown; displayName?: unknown };
+app.post("/api/auth/register", async (req: Request, res: Response) => {
+  const { username, displayName, password } = (req.body || {}) as {
+    username?: unknown;
+    displayName?: unknown;
+    password?: unknown;
+  };
   if (!isValidUsername(username)) {
     return res.status(400).json({ error: "invalid_username" });
   }
   const name = (typeof displayName === "string" ? displayName : "").trim().slice(0, 40);
   if (!name) return res.status(400).json({ error: "missing_display_name" });
+  if (!isValidPassword(password)) {
+    return res.status(400).json({ error: "invalid_password" });
+  }
 
   const existing = await getUserByUsername(db, username);
-  const user = existing ?? (await createUser(db, username, name));
-  res.json({
-    id: user.id,
-    username: user.username,
-    displayName: user.display_name,
-    characterId: user.character_id,
-    characterImagePath: user.character_id ? await getCharacterImagePath(user.character_id) : null,
-  });
+  if (existing) return res.status(409).json({ error: "username_taken" });
+
+  const user = await createUser(db, username, name, hashPassword(password));
+  const token = await createSession(db, user.id);
+  setSessionCookie(res, token);
+  res.status(201).json(publicUser(user, null));
+});
+
+app.post("/api/auth/login", async (req: Request, res: Response) => {
+  const { username, password } = (req.body || {}) as { username?: unknown; password?: unknown };
+  if (typeof username !== "string" || typeof password !== "string") {
+    return res.status(400).json({ error: "invalid_credentials" });
+  }
+
+  const user = await getUserByUsername(db, username);
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    return res.status(401).json({ error: "invalid_credentials" });
+  }
+
+  const token = await createSession(db, user.id);
+  setSessionCookie(res, token);
+  res.json(publicUser(user, user.character_id ? await getCharacterImagePath(user.character_id) : null));
+});
+
+app.post("/api/auth/logout", async (req: Request, res: Response) => {
+  const token = sessionTokenFromRequest(req);
+  if (token) await deleteSession(db, token);
+  clearSessionCookie(res);
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).json({ error: "not_authenticated" });
+  const characterImagePath = req.user.character_id ? await getCharacterImagePath(req.user.character_id) : null;
+  res.json(publicUser(req.user, characterImagePath));
 });
 
 app.get("/api/characters", async (_req: Request, res: Response) => {
@@ -159,10 +208,9 @@ app.get("/api/characters", async (_req: Request, res: Response) => {
   res.json(rows);
 });
 
-app.post("/api/users/:id/character", async (req: Request, res: Response) => {
+app.post("/api/me/character", requireAuth(), async (req: Request, res: Response) => {
   const { characterId } = (req.body || {}) as { characterId?: unknown };
-  const user = await getUserById(db, String(req.params.id ?? ""));
-  if (!user) return res.status(404).json({ error: "user_not_found" });
+  const user = req.user!;
 
   if (characterId === null) {
     await db.run("UPDATE users SET character_id = NULL WHERE id = ?", [user.id]);
@@ -178,11 +226,9 @@ app.post("/api/users/:id/character", async (req: Request, res: Response) => {
   res.json({ characterId, characterImagePath: imagePath });
 });
 
-app.post("/api/rooms", async (req: Request, res: Response) => {
-  const { userId, lang } = (req.body || {}) as { userId?: string; lang?: string };
-  const user = await getUserById(db, userId ?? "");
-  if (!user) return res.status(401).json({ error: "invalid_user" });
-  const room = await rooms.createRoom(user, SUPPORTED_LANGS.includes(lang ?? "") ? lang : null);
+app.post("/api/rooms", requireAuth(), async (req: Request, res: Response) => {
+  const { lang } = (req.body || {}) as { lang?: string };
+  const room = await rooms.createRoom(req.user!, SUPPORTED_LANGS.includes(lang ?? "") ? lang : null);
   res.json({ code: room.code });
 });
 
@@ -192,16 +238,13 @@ app.get("/api/rooms/:code", (req: Request, res: Response) => {
   res.json(rooms.publicState(room));
 });
 
-app.post("/api/rooms/:code/join", async (req: Request, res: Response) => {
-  const { userId } = (req.body || {}) as { userId?: string };
-  const user = await getUserById(db, userId ?? "");
-  if (!user) return res.status(401).json({ error: "invalid_user" });
+app.post("/api/rooms/:code/join", requireAuth(), async (req: Request, res: Response) => {
   const room = rooms.getByCode(String(req.params.code ?? ""));
   if (!room) return res.status(404).json({ error: "room_not_found" });
   if (room.status !== "waiting") {
     return res.status(409).json({ error: "race_already_started" });
   }
-  await rooms.addParticipant(room, user);
+  await rooms.addParticipant(room, req.user!);
   res.json(rooms.publicState(room));
 });
 
@@ -322,8 +365,9 @@ wss.on("connection", async (ws: WebSocket, req) => {
     return;
   }
 
-  const userId = url.searchParams.get("userId");
-  const user = await getUserById(db, userId ?? "");
+  // Identity comes from the session cookie sent on the WS handshake, not a
+  // client-supplied userId — otherwise anyone could join/type as anyone.
+  const user = await resolveSessionUserFromCookieHeader(db, req.headers.cookie);
   if (!user) {
     ws.send(JSON.stringify({ type: "error", error: "invalid_user" } satisfies ServerMessage));
     ws.close();
