@@ -9,6 +9,7 @@ import { createUser, getUserByUsername, getUserById, isValidUsername } from "./u
 import { RoomManager, type RoomState } from "./rooms.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
 import { mountAdmin, createAdminAuthMiddleware } from "./admin.js";
+import { mountTextsApi } from "./textsApi.js";
 
 const db = await createDb();
 
@@ -461,6 +462,9 @@ wss.on("connection", async (ws: WebSocket, req) => {
 
 // Enabled only if ADMIN_USERNAME/ADMIN_PASSWORD are both set — see admin.ts.
 mountAdmin(app, db, rooms, (room) => broadcast(room, { type: "finish", room: rooms.publicState(room) }));
+
+// Enabled only if TEXTS_API_KEY is set — see textsApi.ts.
+mountTextsApi(app, db);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

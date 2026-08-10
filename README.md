@@ -98,6 +98,27 @@ ADMIN_USERNAME=admin ADMIN_PASSWORD=a-strong-password npm start
 
 Auth is HTTP Basic (browser-native login prompt), checked with a timing-safe comparison. There's no session or cookie — the browser resends the credentials on every request.
 
+## Texts API
+
+`POST /api/texts` lets an external system feed race texts into the database over HTTP, separate from the admin panel's CRUD UI.
+
+It's **disabled by default**. Set the `TEXTS_API_KEY` env var to enable it; without it, the route doesn't exist (404):
+
+```sh
+TEXTS_API_KEY=a-strong-random-key npm start
+```
+
+Authenticate with a bearer token, checked with a timing-safe comparison:
+
+```sh
+curl -X POST http://localhost:3000/api/texts \
+  -H "Authorization: Bearer a-strong-random-key" \
+  -H "Content-Type: application/json" \
+  -d '{"content": "the quick brown fox...", "lang": "en"}'
+```
+
+Send `{ "texts": [{ "content": "...", "lang": "en" }, ...] }` instead to insert several at once — the response then is `{ "inserted": <count>, "texts": [...] }` rather than a single row.
+
 ## Project structure
 
 ```
