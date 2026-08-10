@@ -22,6 +22,10 @@ FROM deps AS build
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 COPY scripts ./scripts
+# Schema changes live here (create/up/down/drop-all via scripts/migrate.ts) —
+# both src/db.ts (auto-runs pending migrations on every boot) and the CLI
+# import from this directory, so it has to be part of the compiled output too.
+COPY migrations ./migrations
 RUN npm run build
 
 # --- prod-deps: same install, pruned down to production dependencies only -

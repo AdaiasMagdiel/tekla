@@ -3,6 +3,11 @@ data/
 public/uploads/
 dist/
 tests/
+e2e/
+playwright-report/
+test-results/
+playwright.config.ts
+vitest.config.ts
 .git/
 .github/
 .claude/
