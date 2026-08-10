@@ -173,6 +173,26 @@ export class RoomManager {
     room.participants.delete(userId);
   }
 
+  // If the host is gone (left the "waiting" room entirely) or just
+  // disconnected (mid-race/finished, where they're kept around in case they
+  // reconnect), hand the title to whoever else has been in the room the
+  // longest — Map iteration order tracks arrival order, and a fresh entrant
+  // (rejoin after removal) is appended at the end, so the earliest surviving
+  // arrival is always first. Without this, everyone else is stuck staring at
+  // "waiting for host" with no way to start a new race.
+  async maybeTransferHost(room: RoomState): Promise<void> {
+    const currentHost = room.participants.get(room.hostUserId);
+    if (currentHost?.connected) return;
+
+    const next = [...room.participants.values()].find(
+      (p) => p.user.id !== room.hostUserId && p.connected
+    );
+    if (!next) return;
+
+    room.hostUserId = next.user.id;
+    await this.db.run("UPDATE rooms SET host_user_id=? WHERE id=?", [next.user.id, room.id]);
+  }
+
   addSpectator(room: RoomState, ws: WebSocket): void {
     room.spectators.add(ws);
   }

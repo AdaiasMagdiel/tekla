@@ -449,6 +449,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
       if (room.status === "waiting") {
         rooms.removeParticipant(room, user.id);
       }
+      await rooms.maybeTransferHost(room);
       sendState(room);
       if (room.status === "racing") await maybeFinishRoom(room);
       if (room.participants.size === 0) rooms.destroyRoom(room.id);
