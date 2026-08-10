@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import Database from "better-sqlite3";
 import type { DbAdapter, RunResult } from "./types.js";
 
@@ -5,8 +7,15 @@ import type { DbAdapter, RunResult } from "./types.js";
 // MySQL adapter, but do real synchronous work under the hood (better-sqlite3
 // has no async API) — the `await` a caller does just yields one microtask
 // tick, no actual I/O wait, so performance is unchanged from before.
-export function createSqliteAdapter(path: string): DbAdapter {
-  const raw = new Database(path);
+export function createSqliteAdapter(dbPath: string): DbAdapter {
+  // better-sqlite3 refuses to create the database file if its parent
+  // directory doesn't exist yet (e.g. a fresh checkout's untracked data/).
+  // In-memory/temp special paths (":memory:", "") have no directory to make.
+  if (dbPath !== ":memory:" && dbPath !== "") {
+    fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+  }
+
+  const raw = new Database(dbPath);
   raw.pragma("journal_mode = WAL");
   raw.pragma("foreign_keys = ON");
 

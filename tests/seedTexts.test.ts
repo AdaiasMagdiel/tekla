@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { mkdtempSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { join, basename } from "path";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "../src/seedTexts.js";
 import { testDb, seedText } from "./helpers.js";
 
@@ -16,7 +16,7 @@ describe("collectSeedFiles", () => {
     writeFileSync(join(dir, "en.txt"), "");
     writeFileSync(join(dir, "notes.md"), "ignored");
 
-    const files = collectSeedFiles([dir]).map((f) => f.split("/").pop());
+    const files = collectSeedFiles([dir]).map((f) => basename(f));
     expect(files.sort()).toEqual(["en.txt", "pt.json"]);
   });
 
