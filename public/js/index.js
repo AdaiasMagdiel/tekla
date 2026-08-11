@@ -24,7 +24,7 @@ const joinBtn = document.getElementById("joinBtn");
 const characterPicker = document.getElementById("characterPicker");
 
 let currentUser = null;
-let authMode = "login"; // "login" | "register"
+let authMode = "register"; // "register" | "login"
 let characters = [];
 
 function showError(msg) {
@@ -224,7 +224,7 @@ roomCodeEl.addEventListener("keydown", (e) => {
   if (e.key === "Enter") joinBtn.click();
 });
 
-setAuthMode("login");
+setAuthMode("register");
 
 fetch("/api/auth/me")
   .then((r) => (r.ok ? r.json() : null))

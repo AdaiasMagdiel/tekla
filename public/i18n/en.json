@@ -60,7 +60,10 @@
     "you": " (you)",
     "offline": "offline",
     "notFinished": "did not finish",
-    "finishSummary": "{time}s · {wpm} WPM · {accuracy}% accuracy"
+    "finishSummary": "{time}s · {wpm} WPM · {accuracy}% accuracy",
+    "chatHeading": "Room chat",
+    "chatPlaceholder": "Write a message…",
+    "chatEmpty": "No messages yet. Say hi!"
   },
   "ranking": {
     "title": "Ranking — Tekla",

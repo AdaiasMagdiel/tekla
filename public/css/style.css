@@ -216,7 +216,8 @@ label {
   letter-spacing: 0.03em;
 }
 
-input[type="text"] {
+input[type="text"],
+input[type="password"] {
   width: 100%;
   padding: 12px 14px;
   border-radius: 8px;
@@ -229,8 +230,10 @@ input[type="text"] {
   outline: none;
   transition: border-color 0.15s;
 }
-input[type="text"]:focus { border-color: var(--accent); }
-input[type="text"]::placeholder { color: var(--muted); }
+input[type="text"]:focus,
+input[type="password"]:focus { border-color: var(--accent); }
+input[type="text"]::placeholder,
+input[type="password"]::placeholder { color: var(--muted); }
 
 .character-picker {
   display: flex;
@@ -453,6 +456,84 @@ code.room-code {
   font-feature-settings: "tnum", "zero";
   color: var(--text-dim);
 }
+
+/* ---- Chat ---- */
+
+.chat-panel {
+  margin-top: 20px;
+  padding: 0;
+  overflow: hidden;
+}
+
+.chat-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 26px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+}
+.chat-toggle:hover { background: var(--bg-alt); }
+
+.chat-unread {
+  background: var(--brand);
+}
+
+.chat-chevron {
+  margin-left: auto;
+  transition: transform 0.15s;
+}
+.chat-panel.collapsed .chat-chevron { transform: rotate(-90deg); }
+.chat-panel.collapsed #chatBody { display: none; }
+
+.chat-messages {
+  list-style: none;
+  margin: 0;
+  padding: 0 26px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.chat-messages:not(:empty) { padding-bottom: 16px; }
+
+.chat-message {
+  font-size: 0.9rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+.chat-message .chat-author {
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 6px;
+}
+.chat-message.me .chat-author { color: var(--brand); }
+.chat-message .chat-time {
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.chat-empty-msg {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  padding: 0 0 16px;
+}
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  padding: 16px 26px;
+  border-top: 1px solid var(--border);
+}
+.chat-form input[type="text"] { flex: 1; }
+.chat-form button { flex-shrink: 0; }
 
 .countdown-overlay {
   position: fixed;

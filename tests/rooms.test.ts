@@ -132,6 +132,58 @@ describe("RoomManager room lifecycle", () => {
   });
 });
 
+describe("RoomManager.postChatMessage", () => {
+  let db: DbAdapter;
+  let rooms: RoomManager;
+
+  beforeEach(async () => {
+    db = await testDb();
+    await seedText(db, "Race text for the room.", "pt");
+    rooms = new RoomManager(db);
+  });
+
+  it("trims whitespace and records the sender", async () => {
+    const host = await testUser(db, "chathost1", "Chat Host");
+    const room = await rooms.createRoom(host);
+
+    const message = rooms.postChatMessage(room, host, "  hey there  ");
+
+    expect(message?.text).toBe("hey there");
+    expect(message?.userId).toBe(host.id);
+    expect(message?.displayName).toBe("Chat Host");
+    expect(room.chat).toEqual([message]);
+  });
+
+  it("drops blank or whitespace-only messages", async () => {
+    const host = await testUser(db, "chathost2", "Chat Host");
+    const room = await rooms.createRoom(host);
+
+    expect(rooms.postChatMessage(room, host, "   ")).toBeNull();
+    expect(rooms.postChatMessage(room, host, "")).toBeNull();
+    expect(room.chat).toHaveLength(0);
+  });
+
+  it("truncates messages longer than the max length", async () => {
+    const host = await testUser(db, "chathost3", "Chat Host");
+    const room = await rooms.createRoom(host);
+
+    const message = rooms.postChatMessage(room, host, "x".repeat(500));
+
+    expect(message?.text).toHaveLength(300);
+  });
+
+  it("caps history at the last 100 messages", async () => {
+    const host = await testUser(db, "chathost4", "Chat Host");
+    const room = await rooms.createRoom(host);
+
+    for (let i = 0; i < 105; i++) rooms.postChatMessage(room, host, `msg ${i}`);
+
+    expect(room.chat).toHaveLength(100);
+    expect(room.chat[0]?.text).toBe("msg 5");
+    expect(room.chat[99]?.text).toBe("msg 104");
+  });
+});
+
 describe("RoomManager.liveStats", () => {
   it("returns zeros before the race has started", async () => {
     const db = await testDb();
