@@ -1,4 +1,4 @@
-import { customAlphabet } from "nanoid";
+import { customAlphabet, nanoid } from "nanoid";
 import type { WebSocket } from "ws";
 import type { DbAdapter } from "./db.js";
 import { pickRandomText } from "./texts.js";
@@ -19,6 +19,21 @@ const CAR_COLORS = [
 ];
 
 export type RoomStatus = "waiting" | "countdown" | "racing" | "finished";
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  username: string;
+  displayName: string;
+  text: string;
+  sentAt: number;
+}
+
+// Chat lives only in memory, same as the rest of RoomState — it's a live
+// conversation for people currently in the room, not a record worth
+// persisting or surviving a server restart.
+const CHAT_HISTORY_LIMIT = 100;
+const CHAT_MAX_LEN = 300;
 
 export interface Participant {
   user: UserRow;
@@ -45,6 +60,7 @@ export interface RoomState {
   difficulty: Difficulty | null;
   participants: Map<string, Participant>;
   spectators: Set<WebSocket>;
+  chat: ChatMessage[];
   createdAt: number;
   startedAt: number | null;
   countdownTimer: NodeJS.Timeout | null;
@@ -117,6 +133,7 @@ export class RoomManager {
       difficulty: null,
       participants: new Map(),
       spectators: new Set(), // read-only "mirror" viewers (big screens)
+      chat: [],
       createdAt: now,
       startedAt: null,
       countdownTimer: null,
@@ -202,6 +219,26 @@ export class RoomManager {
 
   removeSpectator(room: RoomState, ws: WebSocket): void {
     room.spectators.delete(ws);
+  }
+
+  // Returns null for a blank/oversized message instead of throwing — callers
+  // (the ws "chat" handler) just drop the message on null rather than
+  // needing a try/catch for what's really just invalid input.
+  postChatMessage(room: RoomState, user: UserRow, text: string): ChatMessage | null {
+    const trimmed = text.trim().slice(0, CHAT_MAX_LEN);
+    if (!trimmed) return null;
+
+    const message: ChatMessage = {
+      id: nanoid(12),
+      userId: user.id,
+      username: user.username,
+      displayName: user.display_name,
+      text: trimmed,
+      sentAt: Date.now(),
+    };
+    room.chat.push(message);
+    if (room.chat.length > CHAT_HISTORY_LIMIT) room.chat.shift();
+    return message;
   }
 
   // Computed fresh on every call so PPM/precisão/tempo keep moving in real

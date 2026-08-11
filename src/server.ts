@@ -20,7 +20,7 @@ import {
   resolveSessionUserFromCookieHeader,
   publicUser,
 } from "./auth.js";
-import { RoomManager, type RoomState } from "./rooms.js";
+import { RoomManager, type RoomState, type ChatMessage } from "./rooms.js";
 import { DIFFICULTIES, type Difficulty } from "./types.js";
 import { collectSeedFiles, parseSeedFile, importSeedRows } from "./seedTexts.js";
 import { mountAdmin, createAdminAuthMiddleware } from "./admin.js";
@@ -320,7 +320,9 @@ type ServerMessage =
   | { type: "countdown"; n: number }
   | { type: "go"; text: string }
   | { type: "progress"; room: ReturnType<RoomManager["publicState"]> }
-  | { type: "finish"; room: ReturnType<RoomManager["publicState"]> };
+  | { type: "finish"; room: ReturnType<RoomManager["publicState"]> }
+  | { type: "chat_history"; messages: ChatMessage[] }
+  | { type: "chat"; message: ChatMessage };
 
 function broadcast(room: RoomState, msg: ServerMessage): void {
   const data = JSON.stringify(msg);
@@ -361,6 +363,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
   if (isSpectator) {
     rooms.addSpectator(room, ws);
     ws.send(JSON.stringify({ type: "state", room: rooms.publicState(room) } satisfies ServerMessage));
+    ws.send(JSON.stringify({ type: "chat_history", messages: room.chat } satisfies ServerMessage));
     ws.on("close", () => rooms.removeSpectator(room, ws));
     return;
   }
@@ -379,6 +382,7 @@ wss.on("connection", async (ws: WebSocket, req) => {
   participant.connected = true;
 
   sendState(room);
+  ws.send(JSON.stringify({ type: "chat_history", messages: room.chat } satisfies ServerMessage));
 
   ws.on("message", async (raw) => {
     try {
@@ -386,6 +390,12 @@ wss.on("connection", async (ws: WebSocket, req) => {
       try {
         msg = JSON.parse(raw.toString());
       } catch {
+        return;
+      }
+
+      if (msg.type === "chat") {
+        const message = rooms.postChatMessage(room, user, String(msg.text ?? ""));
+        if (message) broadcast(room, { type: "chat", message });
         return;
       }
 

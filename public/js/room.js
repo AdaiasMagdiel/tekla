@@ -1,4 +1,4 @@
-const { t, SUPPORTED_LANGS } = window.i18n;
+const { t, lang, SUPPORTED_LANGS } = window.i18n;
 
 function codeFromUrl(pageSegment) {
   const segments = window.location.pathname.split("/").filter(Boolean);
@@ -39,6 +39,12 @@ const restartBtn = document.getElementById("restartBtn");
 const waitingRestartMsg = document.getElementById("waitingRestartMsg");
 const copyHint = document.getElementById("copyHint");
 const copyHintText = document.getElementById("copyHintText");
+const chatPanel = document.getElementById("chatPanel");
+const chatToggle = document.getElementById("chatToggle");
+const chatUnreadBadge = document.getElementById("chatUnreadBadge");
+const chatMessages = document.getElementById("chatMessages");
+const chatForm = document.getElementById("chatForm");
+const chatInput = document.getElementById("chatInput");
 
 let targetText = null;
 let startedAt = null;
@@ -49,6 +55,60 @@ let latestState = null;
 let raceStarted = false;
 let resultsShown = false;
 let statsTicker = null;
+let chatCollapsed = false;
+let unreadChatCount = 0;
+
+const CHAT_TIME_LOCALES = { pt: "pt-BR", en: "en-US" };
+function formatChatTime(ts) {
+  return new Date(ts).toLocaleTimeString(CHAT_TIME_LOCALES[lang] || "en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function appendChatMessage(msg) {
+  const wasEmpty = chatMessages.querySelector(".chat-empty-msg");
+  if (wasEmpty) wasEmpty.remove();
+
+  const li = document.createElement("li");
+  li.className = "chat-message" + (msg.userId === user.id ? " me" : "");
+  li.innerHTML = `<span class="chat-author">${escapeHtml(msg.displayName)}</span><span class="chat-text">${escapeHtml(msg.text)}</span><span class="chat-time">${formatChatTime(msg.sentAt)}</span>`;
+  chatMessages.appendChild(li);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+
+  if (chatCollapsed && msg.userId !== user.id) {
+    unreadChatCount++;
+    chatUnreadBadge.textContent = String(unreadChatCount);
+    chatUnreadBadge.style.display = "";
+  }
+}
+
+function renderChatHistory(messages) {
+  chatMessages.innerHTML = "";
+  if (!messages.length) {
+    chatMessages.innerHTML = `<li class="chat-empty-msg">${escapeHtml(t("room.chatEmpty"))}</li>`;
+    return;
+  }
+  messages.forEach(appendChatMessage);
+}
+
+chatToggle.addEventListener("click", () => {
+  chatCollapsed = !chatCollapsed;
+  chatPanel.classList.toggle("collapsed", chatCollapsed);
+  if (!chatCollapsed) {
+    unreadChatCount = 0;
+    chatUnreadBadge.style.display = "none";
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
+});
+
+chatForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = chatInput.value.trim();
+  if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: "chat", text }));
+  chatInput.value = "";
+});
 
 copyHint.addEventListener("click", () => {
   const url = `${window.location.origin}${langPrefix()}/room/${roomCode}`;
@@ -100,6 +160,10 @@ function connectWs() {
     } else if (msg.type === "finish") {
       latestState = msg.room;
       renderState(msg.room);
+    } else if (msg.type === "chat_history") {
+      renderChatHistory(msg.messages);
+    } else if (msg.type === "chat") {
+      appendChatMessage(msg.message);
     }
   });
 
